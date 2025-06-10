@@ -9,3 +9,9 @@
 ::-webkit-scrollbar{
     display: none;
 }
+.your-bg-class {
+  background-image: url('/bgImage.svg'); /* ✅ this works from public folder */
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
