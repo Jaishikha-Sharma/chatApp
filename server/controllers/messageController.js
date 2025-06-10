@@ -39,12 +39,15 @@ export const getMessages = async (req, res) => {
   try {
     const { id: selectedUserId } = req.params;
     const myId = req.user._id;
+
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: selectedUserId },
         { senderId: selectedUserId, receiverId: myId },
       ],
+      deletedFor: { $ne: myId }  // ⬅️ Exclude messages deleted for current user
     }).sort({ createdAt: 1 });
+
     await Message.updateMany(
       { senderId: selectedUserId, receiverId: myId, seen: false },
       { seen: true }
@@ -108,29 +111,24 @@ export const deleteChat = async (req, res) => {
     const myId = req.user._id;
     const otherUserId = req.params.id;
 
-    await Message.deleteMany({
-      $or: [
-        { senderId: myId, receiverId: otherUserId },
-        { senderId: otherUserId, receiverId: myId },
-      ],
-    });
+    // Mark messages as deleted for this user
+    await Message.updateMany(
+      {
+        $or: [
+          { senderId: myId, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: myId },
+        ],
+        deletedFor: { $ne: myId },
+      },
+      { $push: { deletedFor: myId } }
+    );
 
-    res.json({ success: true, message: "Chat deleted successfully" });
+    res.json({ success: true, message: "Chat deleted for you only." });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// (Optional) CLEAR chat – just mark all messages as deleted by one user (not used now)
-export const clearChat = async (req, res) => {
-  try {
-    const myId = req.user._id;
-    const otherUserId = req.params.id;
-    
-    res.json({ success: true, message: "Chat cleared (frontend only)" });
-  } catch (error) {
-    console.log(error.message);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+
+

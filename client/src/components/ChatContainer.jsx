@@ -6,7 +6,7 @@ import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
 
 // Lucide icons
-import { Trash2, Eraser, ArrowLeft } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 const ChatContainer = () => {
   const {
@@ -16,14 +16,13 @@ const ChatContainer = () => {
     sendMessage,
     getMessages,
     deleteChat,
-    clearChat,
   } = useContext(ChatContext);
   const { authUser, onlineUsers } = useContext(AuthContext);
 
   const [input, setInput] = useState("");
   const scrollEnd = useRef();
+  const [showProfile, setShowProfile] = useState(false);
 
-  // Send Text Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (input.trim() === "") return;
@@ -31,7 +30,6 @@ const ChatContainer = () => {
     setInput("");
   };
 
-  // Send Image
   const handleSendImage = async (e) => {
     const file = e.target.files[0];
     if (!file || !file.type.startsWith("image/")) {
@@ -47,62 +45,91 @@ const ChatContainer = () => {
     e.target.value = "";
   };
 
-  // Fetch messages when user changes
   useEffect(() => {
     if (selectedUser) {
       getMessages(selectedUser._id);
     }
   }, [selectedUser]);
 
-  // Scroll to latest message
   useEffect(() => {
     if (scrollEnd.current && messages) {
       scrollEnd.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
-  // Handle chat clearing
-  const handleClearChat = async () => {
-    const confirm = window.confirm("Are you sure you want to clear this chat?");
+  const handleDeleteChat = async () => {
+    const confirm = window.confirm("Are you sure you want to delete this chat?");
     if (confirm) {
-      await clearChat(selectedUser._id);
+      await deleteChat(selectedUser._id);
+      setSelectedUser(null);
     }
   };
 
   return selectedUser ? (
     <div className="h-full overflow-scroll relative backdrop-blur-lg">
       {/* Header */}
-      <div className="flex items-center gap-3 py-3 mx-4 border-b border-stone-500">
-        <img
-          src={selectedUser.profilePic || assets.avatar_icon}
-          alt="User avatar"
-          className="w-8 rounded-full"
-        />
-        <p className="flex-1 text-lg text-white flex items-center gap-2">
-          {selectedUser.fullName}
-          {onlineUsers.includes(selectedUser._id) && (
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          )}
-        </p>
-
-        {/* Action Buttons with Lucide icons */}
-        <div className="flex items-center gap-3 text-white">
-          <Eraser
-            size={18}
-            onClick={handleClearChat}
-            className="cursor-pointer hover:text-yellow-400"
-            title="Clear Chat"
+      <div className="flex items-center justify-between gap-3 py-3 px-4 border-b border-stone-500 relative">
+        <div className="flex items-center gap-3">
+          <img
+            src={selectedUser.profilePic || assets.avatar_icon}
+            alt="User avatar"
+            className="w-8 rounded-full"
           />
-          <ArrowLeft
+          <p
+            className="text-lg text-white flex items-center gap-2 cursor-pointer"
+            onClick={() => setShowProfile(!showProfile)}
+          >
+            {selectedUser.fullName}
+            {onlineUsers.includes(selectedUser._id) && (
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 text-white">
+          <Trash2
+            size={18}
+            onClick={handleDeleteChat}
+            className="cursor-pointer hover:text-red-500"
+            title="Delete Chat"
+          />
+          <X
             size={20}
             onClick={() => setSelectedUser(null)}
-            className="cursor-pointer md:hidden"
-            title="Back"
+            className="cursor-pointer hover:text-red-500"
+            title="Close Chat"
           />
         </div>
+
+        {/* Profile Info Popup */}
+        {showProfile && (
+          <div className="absolute top-14 left-4 bg-white/90 text-black rounded-lg p-4 shadow-md z-50 w-60">
+            <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">
+              User Info
+            </h3>
+            <div className="flex items-center gap-2 mb-2">
+              <img
+                src={selectedUser.profilePic || assets.avatar_icon}
+                alt="User avatar"
+                className="w-10 h-10 rounded-full"
+              />
+              <div>
+                <p className="font-medium">{selectedUser.fullName}</p>
+                <p className="text-sm text-gray-600">
+                  {onlineUsers.includes(selectedUser._id)
+                    ? "Online"
+                    : "Offline"}
+                </p>
+              </div>
+            </div>
+            {selectedUser.email && (
+              <p className="text-sm text-gray-700">📧 {selectedUser.email}</p>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Chat Area */}
+      {/* Messages */}
       <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-3 pb-6">
         {messages.map((msg) => (
           <div
@@ -111,7 +138,6 @@ const ChatContainer = () => {
               msg.senderId !== authUser._id && "flex-row-reverse"
             }`}
           >
-            {/* Message Content */}
             {msg.image ? (
               <img
                 src={msg.image}
@@ -129,8 +155,6 @@ const ChatContainer = () => {
                 {msg.text}
               </p>
             )}
-
-            {/* Avatar + Time */}
             <div className="text-center text-xs">
               <img
                 src={
@@ -141,14 +165,16 @@ const ChatContainer = () => {
                 alt="User avatar"
                 className="w-7 rounded-full"
               />
-              <p className="text-gray-500">{formatMessageTime(msg.createdAt)}</p>
+              <p className="text-gray-500">
+                {formatMessageTime(msg.createdAt)}
+              </p>
             </div>
           </div>
         ))}
         <div ref={scrollEnd}></div>
       </div>
 
-      {/* Input Area */}
+      {/* Input Box */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3">
         <div className="flex-1 flex items-center bg-gray-100/12 px-3 rounded-full">
           <input
@@ -157,7 +183,7 @@ const ChatContainer = () => {
             onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
             type="text"
             placeholder="Send a message"
-            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400"
+            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400 bg-transparent"
           />
           <input
             type="file"
