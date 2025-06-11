@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
-import assets from "../assets/assets.js";
 import { AuthContext } from "../../context/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
+import chat from "../assets/chat.avif";
 
 const LoginPage = () => {
   const [currentState, setCurrentState] = useState("Sign Up");
@@ -11,7 +12,8 @@ const LoginPage = () => {
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  const { login } = useContext(AuthContext);
+  const { login, signup } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const toggleForm = () => {
     setCurrentState(currentState === "Sign Up" ? "Login" : "Sign Up");
@@ -23,143 +25,144 @@ const LoginPage = () => {
     setAgreeTerms(false);
   };
 
-  const onSubmitHandler = (event) => {
-    event.preventDefault();
+  const onSubmitHandler = async (e) => {
+    e.preventDefault();
     if (currentState === "Sign Up" && !isDataSubmitted) {
       setIsDataSubmitted(true);
       return;
     }
-
-    login(currentState === "Sign Up" ? "signup" : "login", {
-      fullName,
-      email,
-      password,
-      bio,
-    });
+    if (currentState === "Sign Up") {
+      await signup({ fullName, email, password, bio });
+      toggleForm();
+    } else {
+      await login("login", { email, password });
+      navigate("/");
+    }
   };
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center flex items-center justify-center gap-8 sm:justify-evenly max-sm:flex-col backdrop-blur-2xl px-4"
-      style={{ backgroundImage: 'url("/your-bg.jpg")' }}
-    >
-      <img
-        src={assets.logo_big}
-        alt="Logo"
-        className="w-[150px] sm:w-[180px] md:w-[200px] lg:w-[220px] xl:w-[250px]"
-      />
-
-      <form
-        onSubmit={onSubmitHandler}
-        className="border border-gray-500 bg-white/10 text-white p-6 flex flex-col rounded-xl shadow-2xl w-full max-w-sm gap-5"
-      >
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold">{currentState}</h2>
-          <button
-            type="button"
-            onClick={toggleForm}
-            className="text-sm text-blue-300 underline hover:text-blue-400"
-          >
-            {currentState === "Sign Up"
-              ? "Switch to Login"
-              : "Switch to Sign Up"}
-          </button>
+    <div className="min-h-screen bg-[#f5f6ff] flex items-center justify-center px-4 py-6">
+      <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl bg-white max-md:flex-col">
+        <div className="w-1/2 max-md:hidden bg-[#ad46ff] flex items-center justify-center p-12">
+          <img
+            src={chat}
+            alt="Chat"
+            className="w-full h-auto max-w-sm object-contain"
+          />
         </div>
 
-        {currentState === "Sign Up" && !isDataSubmitted && (
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="p-3 bg-transparent border border-gray-500 rounded-md placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            placeholder="Full Name"
-            required
-          />
-        )}
-
-        {!isDataSubmitted && (
-          <>
-            <input
-              type="email"
-              value={email}
-              placeholder="Enter your email"
-              required
-              onChange={(e) => setEmail(e.target.value)}
-              className="p-3 bg-transparent border border-gray-500 rounded-md placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <input
-              type="password"
-              value={password}
-              placeholder="Enter your password"
-              required
-              onChange={(e) => setPassword(e.target.value)}
-              className="p-3 bg-transparent border border-gray-500 rounded-md placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-          </>
-        )}
-
-        {currentState === "Sign Up" && isDataSubmitted && (
-          <textarea
-            rows={4}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Write something about yourself..."
-            className="p-3 bg-transparent border border-gray-500 rounded-md placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          ></textarea>
-        )}
-
-        {currentState === "Sign Up" && (
-          <label className="flex items-center gap-2 text-sm text-white">
-            <input
-              type="checkbox"
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="accent-violet-500 w-4 h-4"
-              required
-            />
-            I agree to the{" "}
-            <span className="underline cursor-pointer text-blue-300 hover:text-blue-400">
-              Terms & Conditions
-            </span>
-          </label>
-        )}
-
-        <button
-          type="submit"
-          disabled={currentState === "Sign Up" && !agreeTerms}
-          className={`py-3 rounded-md font-medium transition-all ${
-            currentState === "Sign Up" && !agreeTerms
-              ? "bg-purple-300 cursor-not-allowed"
-              : "bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90"
-          }`}
+        <form
+          onSubmit={onSubmitHandler}
+          className="w-1/2 max-md:w-full p-12 flex flex-col justify-center gap-6"
         >
-          {currentState === "Sign Up" ? "Create Account" : "Login Now"}
-        </button>
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-bold text-gray-800">{currentState}</h2>
+            <button
+              type="button"
+              onClick={toggleForm}
+              className="text-sm text-[#ad46ff] underline hover:text-[#9c39f0]"
+            >
+              {currentState === "Sign Up"
+                ? "Switch to Login"
+                : "Switch to Sign Up"}
+            </button>
+          </div>
 
-        <p className="text-center text-sm text-gray-200">
-          {currentState === "Sign Up" ? (
+          {currentState === "Sign Up" && !isDataSubmitted && (
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Full Name"
+              required
+              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+            />
+          )}
+
+          {!isDataSubmitted && (
             <>
-              Already have an account?{" "}
-              <span
-                onClick={toggleForm}
-                className="text-blue-300 underline cursor-pointer hover:text-blue-400"
-              >
-                Login
-              </span>
-            </>
-          ) : (
-            <>
-              Don’t have an account?{" "}
-              <span
-                onClick={toggleForm}
-                className="text-blue-300 underline cursor-pointer hover:text-blue-400"
-              >
-                Sign Up
-              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+              />
             </>
           )}
-        </p>
-      </form>
+
+          {currentState === "Sign Up" && isDataSubmitted && (
+            <textarea
+              rows={4}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Write something about yourself..."
+              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+            ></textarea>
+          )}
+
+          {currentState === "Sign Up" && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="accent-[#ad46ff] w-4 h-4"
+                required
+              />
+              I agree to the{" "}
+              <span className="underline text-[#ad46ff] hover:text-[#9c39f0] cursor-pointer">
+                Terms & Conditions
+              </span>
+            </label>
+          )}
+
+          <button
+            type="submit"
+            disabled={currentState === "Sign Up" && !agreeTerms}
+            className={`py-3 rounded-xl font-semibold text-lg transition-all ${
+              currentState === "Sign Up" && !agreeTerms
+                ? "bg-[#e6c8ff] text-white cursor-not-allowed"
+                : "bg-[#ad46ff] text-white hover:bg-[#9c39f0] shadow-md"
+            }`}
+          >
+            {currentState === "Sign Up" ? "Create Account" : "Login Now"}
+          </button>
+
+          <p className="text-center text-sm text-gray-600">
+            {currentState === "Sign Up" ? (
+              <>
+                Already have an account?{" "}
+                <span
+                  onClick={toggleForm}
+                  className="text-[#ad46ff] underline cursor-pointer hover:text-[#9c39f0]"
+                >
+                  Login
+                </span>
+              </>
+            ) : (
+              <>
+                Don’t have an account?{" "}
+                <span
+                  onClick={toggleForm}
+                  className="text-[#ad46ff] underline cursor-pointer hover:text-[#9c39f0]"
+                >
+                  Sign Up
+                </span>
+              </>
+            )}
+          </p>
+        </form>
+      </div>
     </div>
   );
 };

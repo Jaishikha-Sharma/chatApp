@@ -4,7 +4,7 @@ import { formatMessageTime } from "../lib/utils.js";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
-import { X, MoreVertical } from "lucide-react";
+import { X, MoreVertical, Image } from "lucide-react";
 
 const GroupChatContainer = () => {
   const {
@@ -76,9 +76,7 @@ const GroupChatContainer = () => {
   const handleClearGroupChat = async () => {
     if (
       selectedGroup &&
-      window.confirm(
-        "Are you sure you want to clear all messages in this group?"
-      )
+      window.confirm("Are you sure you want to clear all messages in this group?")
     ) {
       await clearGroupChat(selectedGroup._id);
     }
@@ -102,7 +100,7 @@ const GroupChatContainer = () => {
   return (
     <div className="h-full overflow-scroll relative backdrop-blur-lg">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 py-3 px-4 border-b border-stone-500 relative">
+      <div className="flex items-center justify-between gap-3 py-3 px-4 border-b border-stone-500 relative bg-white">
         <div className="flex items-center gap-3">
           <img
             src={assets.group_icon || assets.avatar_icon}
@@ -110,19 +108,19 @@ const GroupChatContainer = () => {
             className="w-8 rounded-full"
           />
           <p
-            className="text-lg text-white flex items-center gap-2 cursor-pointer"
+            className="text-lg text-black flex items-center gap-2 cursor-pointer"
             onClick={() => setShowGroupInfo(!showGroupInfo)}
           >
             {selectedGroup.name}
           </p>
         </div>
 
-        <div className="relative flex items-center gap-3 text-white">
+        <div className="relative flex items-center gap-3 text-black">
           <div className="relative">
             <MoreVertical
               size={20}
               onClick={() => setShowOptions((prev) => !prev)}
-              className="cursor-pointer hover:text-gray-300"
+              className="cursor-pointer hover:text-gray-600"
               title="Group Options"
             />
             {showOptions && (
@@ -162,7 +160,6 @@ const GroupChatContainer = () => {
               👥 Group Info
             </h3>
 
-            {/* Rename group */}
             <div className="mb-3">
               <input
                 type="text"
@@ -180,12 +177,10 @@ const GroupChatContainer = () => {
               </button>
             </div>
 
-            {/* Member count */}
             <p className="text-sm mb-2 text-gray-600">
               <strong>{selectedGroup.members.length}</strong> members
             </p>
 
-            {/* Add member dropdown */}
             <select
               className="w-full mb-3 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
               onChange={(e) => {
@@ -206,7 +201,6 @@ const GroupChatContainer = () => {
                 ))}
             </select>
 
-            {/* Member list */}
             <ul className="space-y-2">
               {selectedGroup.members.map((m) => (
                 <li
@@ -262,9 +256,9 @@ const GroupChatContainer = () => {
                   />
                 ) : (
                   <p
-                    className={`p-2 max-w-[200px] text-sm font-light rounded-lg break-all ${
+                    className={`p-3 max-w-[250px] text-sm font-medium rounded-2xl break-words ${
                       isOwn
-                        ? "bg-violet-500/50 text-white rounded-bl-none"
+                        ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-bl-none shadow-md"
                         : "bg-gray-100 text-black rounded-br-none"
                     }`}
                   >
@@ -309,12 +303,8 @@ const GroupChatContainer = () => {
             accept="image/*"
             hidden
           />
-          <label htmlFor="group-image">
-            <img
-              src={assets.gallery_icon}
-              alt="Upload"
-              className="w-5 mr-2 cursor-pointer"
-            />
+          <label htmlFor="group-image" className="mr-2 cursor-pointer">
+          <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
           </label>
         </div>
         <img

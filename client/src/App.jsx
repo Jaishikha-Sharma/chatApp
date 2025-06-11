@@ -11,10 +11,7 @@ const App = () => {
   const { authUser } = useContext(AuthContext);
 
   return (
-    <div
-      className="your-bg-class min-h-screen"
-      style={{ backgroundImage: "url('/bgImage.svg')" }}
-    >
+    <div className="min-h-screen bg-[#f9f9fc] text-gray-800">
       {" "}
       <Toaster />
       <Routes>

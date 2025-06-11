@@ -14,7 +14,6 @@ export const AuthProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
 
-  //check if user is auth. and if so , set the user data connect the socket
   const checkAuth = async () => {
     try {
       const { data } = await axios.get("/api/auth/check");
@@ -27,7 +26,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // login func to hanlder user auth and socket connection
   const login = async (state, credentials) => {
     try {
       const { data } = await axios.post(`/api/auth/${state}`, credentials);
@@ -46,18 +44,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // logout and socket dissconection
+  const signup = async (credentials) => {
+    try {
+      const { data } = await axios.post("/api/auth/signup", credentials);
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const logout = async () => {
     localStorage.removeItem("token");
     setToken(null);
     setAuthUser(null);
     setOnlineUsers([]);
     axios.defaults.headers.common["token"] = null;
-    toast.success("logged out successfully");
-    socket.disconnect();
+    toast.success("Logged out successfully");
+    socket?.disconnect();
   };
 
-  // update profile funct
   const updateProfile = async (body) => {
     try {
       const { data } = await axios.put("/api/auth/update-profile", body);
@@ -70,13 +79,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // connect socket func to handle socket connection and online user updates
   const connectSocket = (userData) => {
     if (!userData || socket?.connected) return;
     const newSocket = io(backendUrl, {
-      query: {
-        userId: userData._id,
-      },
+      query: { userId: userData._id },
     });
     newSocket.connect();
     setSocket(newSocket);
@@ -88,8 +94,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common["token"] = token;
+      checkAuth();
     }
-    checkAuth();
   }, []);
 
   const value = {
@@ -99,7 +105,9 @@ export const AuthProvider = ({ children }) => {
     socket,
     login,
     logout,
+    signup,
     updateProfile,
   };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
