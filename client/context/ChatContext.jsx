@@ -207,6 +207,55 @@ export const ChatProvider = ({ children }) => {
     localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
   }, [pinnedChats]);
 
+  const renameGroup = async (groupId, newName) => {
+    try {
+      const { data } = await axios.put(`/api/groups/rename/${groupId}`, {
+        name: newName,
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setGroups((prev) =>
+          prev.map((g) => (g._id === groupId ? { ...g, name: newName } : g))
+        );
+        setSelectedGroup((prev) => ({ ...prev, name: newName }));
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to rename group");
+    }
+  };
+
+const addMemberToGroup = async (groupId, userId) => {
+  try {
+    const { data } = await axios.put(`/api/groups/add/${groupId}`, {
+      userId,
+    });
+    if (data.success) {
+      toast.success(data.message);
+      getGroupMessages(groupId); // Refresh group info
+    }
+  } catch (error) {
+    toast.error(error.message || "Failed to add member");
+  }
+};
+
+const removeMemberFromGroup = async (groupId, userId) => {
+  try {
+    const { data } = await axios.put(`/api/groups/remove/${groupId}`, {
+      userId,
+    });
+    if (data.success) {
+      toast.success(data.message);
+      setSelectedGroup((prev) => ({
+        ...prev,
+        members: prev.members.filter((member) => member._id !== userId),
+      }));
+    }
+  } catch (error) {
+    toast.error(error.message || "Failed to remove member");
+  }
+};
+
+
   const value = {
     users,
     groups,
@@ -229,6 +278,9 @@ export const ChatProvider = ({ children }) => {
     deleteGroupChat,
     clearGroupChat,
     clearChat,
+    renameGroup,
+    addMemberToGroup,
+    removeMemberFromGroup,
     socket,
   };
 

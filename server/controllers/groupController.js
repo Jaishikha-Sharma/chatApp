@@ -51,68 +51,67 @@ export const getMyGroups = async (req, res) => {
 // Add a member to a group
 export const addMemberToGroup = async (req, res) => {
   try {
-    const { groupId, userIdToAdd } = req.body;
-    const requesterId = req.user._id;
+    const { groupId } = req.params;
+    const { userId } = req.body;
 
     if (
       !mongoose.Types.ObjectId.isValid(groupId) ||
-      !mongoose.Types.ObjectId.isValid(userIdToAdd)
+      !mongoose.Types.ObjectId.isValid(userId)
     ) {
-      return res.status(400).json({ success: false, message: "Invalid IDs" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid group ID or user ID" });
     }
 
     const group = await Group.findById(groupId);
-    if (!group)
+    if (!group) {
       return res
         .status(404)
         .json({ success: false, message: "Group not found" });
-
-    if (group.createdBy.toString() !== requesterId.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
     }
 
-    const userToAdd = await User.findById(userIdToAdd);
-    if (!userToAdd)
-      return res
-        .status(404)
-        .json({ success: false, message: "User to add not found" });
-
-    if (group.members.includes(userIdToAdd)) {
+    if (group.members.includes(userId)) {
       return res
         .status(400)
-        .json({ success: false, message: "User already in group" });
+        .json({
+          success: false,
+          message: "User is already a member of this group",
+        });
     }
 
-    group.members.push(userIdToAdd);
+    group.members.push(userId);
     await group.save();
 
-    res.json({ success: true, group });
+    res.status(200).json({
+      success: true,
+      message: "Member added successfully",
+    });
   } catch (error) {
-    console.error("Add Member Error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Add member error:", error);
+    res.status(500).json({ success: false, message: "Failed to add member" });
   }
 };
 
 // Remove a member from a group
 export const removeMemberFromGroup = async (req, res) => {
   try {
-    const { groupId, userIdToRemove } = req.body;
+    const { groupId } = req.params;
+    const { userId } = req.body;
     const requesterId = req.user._id;
 
     if (
       !mongoose.Types.ObjectId.isValid(groupId) ||
-      !mongoose.Types.ObjectId.isValid(userIdToRemove)
+      !mongoose.Types.ObjectId.isValid(userId)
     ) {
       return res.status(400).json({ success: false, message: "Invalid IDs" });
     }
 
     const group = await Group.findById(groupId);
-    if (!group)
+    if (!group) {
       return res
         .status(404)
         .json({ success: false, message: "Group not found" });
+    }
 
     if (group.createdBy.toString() !== requesterId.toString()) {
       return res
@@ -121,7 +120,7 @@ export const removeMemberFromGroup = async (req, res) => {
     }
 
     group.members = group.members.filter(
-      (memberId) => memberId.toString() !== userIdToRemove
+      (memberId) => memberId.toString() !== userId
     );
 
     await group.save();
@@ -136,34 +135,37 @@ export const removeMemberFromGroup = async (req, res) => {
 // Rename group
 export const renameGroup = async (req, res) => {
   try {
-    const { groupId, newName } = req.body;
-    const requesterId = req.user._id;
+    const { name } = req.body; // ✅ matches frontend payload
+    const { groupId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(groupId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Group ID" });
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: "New group name is required",
+      });
     }
 
     const group = await Group.findById(groupId);
-    if (!group)
-      return res
-        .status(404)
-        .json({ success: false, message: "Group not found" });
-
-    if (group.createdBy.toString() !== requesterId.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found",
+      });
     }
 
-    group.name = newName;
+    group.name = name;
     await group.save();
 
-    res.json({ success: true, group });
+    res.status(200).json({
+      success: true,
+      message: "Group renamed successfully",
+      group,
+    });
   } catch (error) {
-    console.error("Rename Group Error:", error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
   }
 };
 

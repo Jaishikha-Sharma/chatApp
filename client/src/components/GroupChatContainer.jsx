@@ -15,6 +15,10 @@ const GroupChatContainer = () => {
     getGroupMessages,
     deleteGroupChat,
     clearGroupChat,
+    renameGroup,
+    addMemberToGroup,
+    removeMemberFromGroup,
+    users,
   } = useContext(ChatContext);
 
   const { authUser, socket } = useContext(AuthContext);
@@ -22,6 +26,7 @@ const GroupChatContainer = () => {
   const scrollEnd = useRef();
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
 
   useEffect(() => {
     if (selectedGroup) {
@@ -71,9 +76,18 @@ const GroupChatContainer = () => {
   const handleClearGroupChat = async () => {
     if (
       selectedGroup &&
-      window.confirm("Are you sure you want to clear all messages in this group?")
+      window.confirm(
+        "Are you sure you want to clear all messages in this group?"
+      )
     ) {
       await clearGroupChat(selectedGroup._id);
+    }
+  };
+
+  const handleRename = async () => {
+    if (newGroupName.trim()) {
+      await renameGroup(selectedGroup._id, newGroupName.trim());
+      setNewGroupName("");
     }
   };
 
@@ -143,15 +157,74 @@ const GroupChatContainer = () => {
         </div>
 
         {showGroupInfo && (
-          <div className="absolute top-14 left-4 bg-white/90 text-black rounded-lg p-4 shadow-md z-50 w-60 max-h-[300px] overflow-y-auto">
-            <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">Group Info</h3>
-            <p className="mb-2 font-semibold">{selectedGroup.name}</p>
-            <p className="text-sm text-gray-700 mb-3">
-              {selectedGroup.members.length} members
+          <div className="absolute top-14 left-4 bg-white/90 text-black rounded-2xl shadow-2xl p-5 z-50 w-72 max-h-[450px] overflow-y-auto backdrop-blur-sm border border-gray-200">
+            <h3 className="font-semibold text-xl mb-3 border-b pb-2 border-gray-300">
+              👥 Group Info
+            </h3>
+
+            {/* Rename group */}
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Rename group..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRename()}
+              />
+              <button
+                onClick={handleRename}
+                className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white py-2 text-sm rounded-lg transition duration-150"
+              >
+                💾 Rename Group
+              </button>
+            </div>
+
+            {/* Member count */}
+            <p className="text-sm mb-2 text-gray-600">
+              <strong>{selectedGroup.members.length}</strong> members
             </p>
-            <ul className="list-disc list-inside text-sm">
+
+            {/* Add member dropdown */}
+            <select
+              className="w-full mb-3 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              onChange={(e) => {
+                if (e.target.value)
+                  addMemberToGroup(selectedGroup._id, e.target.value);
+                e.target.selectedIndex = 0;
+              }}
+            >
+              <option value="">➕ Add Member</option>
+              {users
+                .filter(
+                  (u) => !selectedGroup.members.some((m) => m._id === u._id)
+                )
+                .map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.fullName}
+                  </option>
+                ))}
+            </select>
+
+            {/* Member list */}
+            <ul className="space-y-2">
               {selectedGroup.members.map((m) => (
-                <li key={m._id}>{m.fullName}</li>
+                <li
+                  key={m._id}
+                  className="flex justify-between items-center px-3 py-2 bg-gray-100 rounded-lg text-sm"
+                >
+                  <span>{m.fullName}</span>
+                  {m._id !== authUser._id && (
+                    <button
+                      onClick={() =>
+                        removeMemberFromGroup(selectedGroup._id, m._id)
+                      }
+                      className="text-red-500 text-xs hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
               ))}
             </ul>
           </div>
@@ -169,7 +242,9 @@ const GroupChatContainer = () => {
           return (
             <div
               key={msg._id}
-              className={`flex items-end mb-4 gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
+              className={`flex items-end mb-4 gap-2 ${
+                isOwn ? "justify-end" : "justify-start"
+              }`}
             >
               {!isOwn && (
                 <img
@@ -196,7 +271,11 @@ const GroupChatContainer = () => {
                     {msg.text}
                   </p>
                 )}
-                <p className={`text-[11px] mt-1 text-gray-400 ${isOwn ? "text-right" : "text-left"}`}>
+                <p
+                  className={`text-[11px] mt-1 text-gray-400 ${
+                    isOwn ? "text-right" : "text-left"
+                  }`}
+                >
                   {formatMessageTime(msg.createdAt)}
                 </p>
               </div>
