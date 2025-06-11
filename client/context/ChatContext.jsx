@@ -11,6 +11,7 @@ export const ChatProvider = ({ children }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [unseenMessages, setUnseenMessages] = useState({});
+  const [pinnedChats, setPinnedChats] = useState([]);
 
   const { socket, axios } = useContext(AuthContext);
 
@@ -190,12 +191,30 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const togglePinChat = (chatId) => {
+    setPinnedChats((prev) =>
+      prev.includes(chatId)
+        ? prev.filter((id) => id !== chatId)
+        : [...prev, chatId]
+    );
+  };
+  useEffect(() => {
+    const savedPins = localStorage.getItem("pinnedChats");
+    if (savedPins) setPinnedChats(JSON.parse(savedPins));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
+
   const value = {
     users,
     groups,
     messages,
     unseenMessages,
     selectedUser,
+    pinnedChats,
+    togglePinChat,
     selectedGroup,
     setSelectedUser,
     setSelectedGroup,
