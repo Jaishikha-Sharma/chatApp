@@ -1,0 +1,252 @@
+import React, { useContext, useEffect, useRef, useState } from "react";
+import assets from "../assets/assets";
+import { formatMessageTime } from "../lib/utils.js";
+import { ChatContext } from "../../context/ChatContext.jsx";
+import { AuthContext } from "../../context/AuthContext.jsx";
+import toast from "react-hot-toast";
+import { X, MoreVertical } from "lucide-react";
+
+const GroupChatContainer = () => {
+  const {
+    messages,
+    selectedGroup,
+    setSelectedGroup,
+    sendGroupMessage,
+    getGroupMessages,
+    deleteGroupChat,
+    clearGroupChat,
+  } = useContext(ChatContext);
+
+  const { authUser, socket } = useContext(AuthContext);
+  const [input, setInput] = useState("");
+  const scrollEnd = useRef();
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      getGroupMessages(selectedGroup._id);
+      if (socket) socket.emit("joinGroup", selectedGroup._id);
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      scrollEnd.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [messages]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    await sendGroupMessage({ text: input.trim() });
+    setInput("");
+  };
+
+  const handleSendImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file!");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      await sendGroupMessage({ image: reader.result });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleDeleteChat = async () => {
+    if (
+      selectedGroup &&
+      window.confirm("Are you sure you want to delete this group chat?")
+    ) {
+      await deleteGroupChat(selectedGroup._id);
+      setSelectedGroup(null);
+    }
+  };
+
+  const handleClearGroupChat = async () => {
+    if (
+      selectedGroup &&
+      window.confirm("Are you sure you want to clear all messages in this group?")
+    ) {
+      await clearGroupChat(selectedGroup._id);
+    }
+  };
+
+  if (!selectedGroup)
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 text-gray-500 bg-white/10 max-md:hidden">
+        <img src={assets.logo_icon} alt="Logo" className="max-w-16" />
+        <p className="text-lg font-medium text-white">Select a group to chat</p>
+      </div>
+    );
+
+  return (
+    <div className="h-full overflow-scroll relative backdrop-blur-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 py-3 px-4 border-b border-stone-500 relative">
+        <div className="flex items-center gap-3">
+          <img
+            src={assets.group_icon || assets.avatar_icon}
+            alt="Group icon"
+            className="w-8 rounded-full"
+          />
+          <p
+            className="text-lg text-white flex items-center gap-2 cursor-pointer"
+            onClick={() => setShowGroupInfo(!showGroupInfo)}
+          >
+            {selectedGroup.name}
+          </p>
+        </div>
+
+        <div className="relative flex items-center gap-3 text-white">
+          <div className="relative">
+            <MoreVertical
+              size={20}
+              onClick={() => setShowOptions((prev) => !prev)}
+              className="cursor-pointer hover:text-gray-300"
+              title="Group Options"
+            />
+            {showOptions && (
+              <div className="absolute top-7 right-0 z-10 bg-white text-sm text-black rounded shadow-md w-44">
+                <button
+                  onClick={() => {
+                    setShowOptions(false);
+                    handleClearGroupChat();
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-yellow-100"
+                >
+                  🧹 Clear Group Chat
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOptions(false);
+                    handleDeleteChat();
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-red-100 text-red-600"
+                >
+                  ❌ Delete Group
+                </button>
+              </div>
+            )}
+          </div>
+          <X
+            size={20}
+            onClick={() => setSelectedGroup(null)}
+            className="cursor-pointer hover:text-red-500"
+            title="Close Chat"
+          />
+        </div>
+
+        {showGroupInfo && (
+          <div className="absolute top-14 left-4 bg-white/90 text-black rounded-lg p-4 shadow-md z-50 w-60 max-h-[300px] overflow-y-auto">
+            <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">Group Info</h3>
+            <p className="mb-2 font-semibold">{selectedGroup.name}</p>
+            <p className="text-sm text-gray-700 mb-3">
+              {selectedGroup.members.length} members
+            </p>
+            <ul className="list-disc list-inside text-sm">
+              {selectedGroup.members.map((m) => (
+                <li key={m._id}>{m.fullName}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-3 pb-6">
+        {messages.map((msg) => {
+          if (!msg || !msg.senderId) return null;
+          const senderId = msg.senderId._id || msg.senderId;
+          const isOwn = senderId === authUser._id;
+          const senderPic = msg.senderId?.profilePic || assets.avatar_icon;
+
+          return (
+            <div
+              key={msg._id}
+              className={`flex items-end mb-4 gap-2 ${isOwn ? "justify-end" : "justify-start"}`}
+            >
+              {!isOwn && (
+                <img
+                  src={senderPic}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full"
+                />
+              )}
+              <div>
+                {msg.image ? (
+                  <img
+                    src={msg.image}
+                    alt="chat image"
+                    className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden"
+                  />
+                ) : (
+                  <p
+                    className={`p-2 max-w-[200px] text-sm font-light rounded-lg break-all ${
+                      isOwn
+                        ? "bg-violet-500/50 text-white rounded-bl-none"
+                        : "bg-gray-100 text-black rounded-br-none"
+                    }`}
+                  >
+                    {msg.text}
+                  </p>
+                )}
+                <p className={`text-[11px] mt-1 text-gray-400 ${isOwn ? "text-right" : "text-left"}`}>
+                  {formatMessageTime(msg.createdAt)}
+                </p>
+              </div>
+              {isOwn && (
+                <img
+                  src={authUser.profilePic || assets.avatar_icon}
+                  alt="avatar"
+                  className="w-7 h-7 rounded-full"
+                />
+              )}
+            </div>
+          );
+        })}
+        <div ref={scrollEnd}></div>
+      </div>
+
+      {/* Input */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3">
+        <div className="flex-1 flex items-center bg-gray-100/12 px-3 rounded-full">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
+            placeholder="Send a message"
+            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400 bg-transparent"
+          />
+          <input
+            type="file"
+            id="group-image"
+            onChange={handleSendImage}
+            accept="image/*"
+            hidden
+          />
+          <label htmlFor="group-image">
+            <img
+              src={assets.gallery_icon}
+              alt="Upload"
+              className="w-5 mr-2 cursor-pointer"
+            />
+          </label>
+        </div>
+        <img
+          src={assets.send_button}
+          alt="Send"
+          onClick={handleSendMessage}
+          className="w-7 cursor-pointer"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default GroupChatContainer;

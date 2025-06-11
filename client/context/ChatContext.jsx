@@ -7,12 +7,13 @@ export const ChatContext = createContext();
 export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [unseenMessages, setUnseenMessages] = useState({});
 
   const { socket, axios } = useContext(AuthContext);
 
-  // Fetch all users for sidebar
   const getUsers = async () => {
     try {
       const { data } = await axios.get("/api/messages/users");
@@ -25,8 +26,19 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Fetch messages for selected user
+  const getGroups = async () => {
+    try {
+      const { data } = await axios.get("/api/groups");
+      if (data.success) {
+        setGroups(data.groups);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to fetch groups");
+    }
+  };
+
   const getMessages = async (userId) => {
+    setSelectedGroup(null);
     try {
       const { data } = await axios.get(`/api/messages/${userId}`);
       if (data.success) {
@@ -37,8 +49,20 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Send message
+  const getGroupMessages = async (groupId) => {
+    setSelectedUser(null);
+    try {
+      const { data } = await axios.get(`/api/groups/group/${groupId}`);
+      if (data.success) {
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to fetch group messages");
+    }
+  };
+
   const sendMessage = async (messageData) => {
+    if (!selectedUser) return;
     try {
       const { data } = await axios.post(
         `/api/messages/send/${selectedUser._id}`,
@@ -54,22 +78,46 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const sendGroupMessage = async (messageData) => {
+    if (!selectedGroup) return;
+    try {
+      const { data } = await axios.post(
+        `/api/groups/group/send/${selectedGroup._id}`,
+        messageData
+      );
+
+      // ❌ Don't add message here, because socket will handle it
+      if (!data.success) {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to send group message");
+    }
+  };
+
   const subscribeToMessages = () => {
     if (!socket) return;
 
     socket.on("newMessage", async (newMessage) => {
-      if (selectedUser && newMessage.senderId === selectedUser._id) {
-        newMessage.seen = true;
-        setMessages((prevMessages) => [...prevMessages, newMessage]);
+      const isGroup = newMessage.isGroup;
+      const isActive =
+        (isGroup && selectedGroup?._id === newMessage.groupId) ||
+        (!isGroup && selectedUser?._id === newMessage.senderId);
 
-        // Mark message as seen
+      if (isActive) {
+        newMessage.seen = true;
+
+        setMessages((prev) => {
+          if (prev.some((msg) => msg._id === newMessage._id)) return prev;
+          return [...prev, newMessage];
+        });
+
         await axios.put(`/api/messages/mark/${newMessage._id}`);
       } else {
-        setUnseenMessages((prevUnseenMessages) => ({
-          ...prevUnseenMessages,
-          [newMessage.senderId]: prevUnseenMessages[newMessage.senderId]
-            ? prevUnseenMessages[newMessage.senderId] + 1
-            : 1,
+        const key = isGroup ? newMessage.groupId : newMessage.senderId;
+        setUnseenMessages((prev) => ({
+          ...prev,
+          [key]: prev[key] ? prev[key] + 1 : 1,
         }));
       }
     });
@@ -82,51 +130,86 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     subscribeToMessages();
     return () => unsubscribefromMessage();
-  }, [socket, selectedUser]);
+  }, [socket, selectedUser, selectedGroup]);
 
-  // Delete all messages from DB for the selected user
-const deleteChat = async (userId) => {
-  try {
-    const { data } = await axios.delete(`/api/messages/delete/${userId}`);
-    if (data.success) {
-      toast.success(data.message);
-      setMessages([]); // Clear messages from UI
-    } else {
-      toast.error(data.message);
+  const deleteChat = async (userId) => {
+    try {
+      const { data } = await axios.delete(`/api/messages/delete/${userId}`);
+      if (data.success) {
+        toast.success(data.message);
+        setMessages([]);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to delete chat");
     }
-  } catch (error) {
-    toast.error(error.message || "Failed to delete chat");
-  }
-};
+  };
 
-// Clear chat (frontend-only or mock for one-side clear)
-const clearChat = async (userId) => {
-  try {
-    const { data } = await axios.delete(`/api/messages/clear/${userId}`);
-    if (data.success) {
-      toast.success(data.message);
-      setMessages([]); // Clear UI
-    } else {
-      toast.error(data.message);
+  const clearChat = async (userId) => {
+    try {
+      const { data } = await axios.delete(`/api/messages/clear/${userId}`);
+      if (data.success) {
+        toast.success(data.message);
+        setMessages([]);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to clear chat");
     }
-  } catch (error) {
-    toast.error(error.message || "Failed to clear chat");
-  }
-};
+  };
 
+  const deleteGroupChat = async (groupId) => {
+    try {
+      const { data } = await axios.delete(`/api/groups/delete/${groupId}`);
+      if (data.success) {
+        toast.success(data.message);
+        setMessages([]);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to delete group chat");
+    }
+  };
+
+  const clearGroupChat = async (groupId) => {
+    try {
+      const { data } = await axios.delete(
+        `/api/groups/clear-messages/${groupId}`
+      );
+      if (data.success) {
+        toast.success(data.message);
+        setMessages([]);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to clear group chat");
+    }
+  };
 
   const value = {
-    messages,
     users,
-    selectedUser,
+    groups,
+    messages,
     unseenMessages,
+    selectedUser,
+    selectedGroup,
     setSelectedUser,
+    setSelectedGroup,
     getUsers,
+    getGroups,
     getMessages,
+    getGroupMessages,
+    setUnseenMessages,
     sendMessage,
-    subscribeToMessages,
-    clearChat,
+    sendGroupMessage,
     deleteChat,
+    deleteGroupChat,
+    clearGroupChat,
+    clearChat,
     socket,
   };
 
