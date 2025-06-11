@@ -50,6 +50,8 @@ const Sidebar = () => {
     const image = type === "user" ? item.profilePic : assets.group_icon;
     const memberCount = item?.members?.length;
 
+    const isOnline = type === "user" && onlineUsers.map(String).includes(String(item._id));
+
     return (
       <div
         key={item._id}
@@ -73,10 +75,17 @@ const Sidebar = () => {
             className="w-[35px] h-[35px] object-cover rounded-full"
           />
           <div className="flex flex-col leading-5">
-            <p className="text-sm font-medium">{name}</p>
-            <span className="text-xs text-gray-400">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">{name}</p>
+              {isPinned(item._id) && <Pin className="w-4 h-4 text-red-400" />}
+            </div>
+            <span
+              className={`text-xs ${
+                isOnline ? "text-green-400" : "text-gray-400"
+              }`}
+            >
               {type === "user"
-                ? onlineUsers.includes(item._id)
+                ? isOnline
                   ? "Online"
                   : "Offline"
                 : `${memberCount || 0} members`}
@@ -86,9 +95,6 @@ const Sidebar = () => {
 
         {/* Right Side Icons */}
         <div className="flex items-center gap-2">
-          {isPinned(item._id) && (
-            <Pin className="w-4 h-4 text-red-400 shrink-0" />
-          )}
           {unseenMessages[item._id] > 0 && (
             <div className="h-5 w-5 flex items-center justify-center rounded-full bg-violet-600 text-white text-[10px] font-bold shadow-md">
               {unseenMessages[item._id]}
