@@ -28,6 +28,15 @@ io.on("connection", (socket) => {
     userSocketMap[userId] = socket.id;
   }
 
+  // handle marking a message as seen
+  socket.on("markMessageSeen", ({ messageId, senderId }) => {
+    // Notify the sender that their message was seen
+    if (senderId && userSocketMap[senderId]) {
+      const senderSocketId = userSocketMap[senderId];
+      io.to(senderSocketId).emit("messageSeenUpdate", { messageId });
+    }
+  });
+
   // emit online users list
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
@@ -49,7 +58,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected", userId);
     delete userSocketMap[userId];
-    io.emit("get online users again", Object.keys(userSocketMap));
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 

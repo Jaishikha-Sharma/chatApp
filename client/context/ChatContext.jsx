@@ -15,18 +15,20 @@ export const ChatProvider = ({ children }) => {
 
   const { socket, axios } = useContext(AuthContext);
 
+  // Fetch all users and unseen message counts
   const getUsers = async () => {
     try {
       const { data } = await axios.get("/api/messages/users");
       if (data.success) {
         setUsers(data.users);
-        setUnseenMessages(data.unseenMessages);
+        setUnseenMessages(data.unseenMessages || {});
       }
     } catch (error) {
       toast.error(error.message || "Failed to fetch users");
     }
   };
 
+  // Fetch all groups
   const getGroups = async () => {
     try {
       const { data } = await axios.get("/api/groups");
@@ -38,18 +40,44 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Fetch messages for one-on-one chat with userId, mark unseen as seen
   const getMessages = async (userId) => {
     setSelectedGroup(null);
     try {
       const { data } = await axios.get(`/api/messages/${userId}`);
       if (data.success) {
-        setMessages(data.messages);
+        // Mark unseen messages from this user as seen locally
+        const updatedMessages = data.messages.map((msg) =>
+          !msg.seen && msg.senderId === userId ? { ...msg, seen: true } : msg
+        );
+        setMessages(updatedMessages);
+
+        // Mark unseen messages as seen on server
+        const unseen = data.messages.filter(
+          (msg) => !msg.seen && msg.senderId === userId
+        );
+
+        await Promise.all(
+          unseen.map((msg) =>
+            axios.put(`/api/messages/mark/${msg._id}`).catch((err) => {
+              console.error("Failed to mark seen:", msg._id, err.message);
+            })
+          )
+        );
+
+        // Remove unseen count from sidebar for this user
+        setUnseenMessages((prev) => {
+          const updated = { ...prev };
+          delete updated[userId];
+          return updated;
+        });
       }
     } catch (error) {
       toast.error(error.message || "Failed to fetch messages");
     }
   };
 
+  // Fetch messages for a group chat by groupId
   const getGroupMessages = async (groupId) => {
     setSelectedUser(null);
     try {
@@ -62,6 +90,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Send one-on-one message to selectedUser
   const sendMessage = async (messageData) => {
     if (!selectedUser) return;
     try {
@@ -79,6 +108,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Send message in selected group; socket will handle updating messages
   const sendGroupMessage = async (messageData) => {
     if (!selectedGroup) return;
     try {
@@ -86,8 +116,6 @@ export const ChatProvider = ({ children }) => {
         `/api/groups/group/send/${selectedGroup._id}`,
         messageData
       );
-
-      // ❌ Don't add message here, because socket will handle it
       if (!data.success) {
         toast.error(data.message);
       }
@@ -96,6 +124,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Subscribe to incoming new messages via socket.io
   const subscribeToMessages = () => {
     if (!socket) return;
 
@@ -109,12 +138,19 @@ export const ChatProvider = ({ children }) => {
         newMessage.seen = true;
 
         setMessages((prev) => {
+          // Prevent duplicate messages
           if (prev.some((msg) => msg._id === newMessage._id)) return prev;
           return [...prev, newMessage];
         });
 
-        await axios.put(`/api/messages/mark/${newMessage._id}`);
+        // Mark message as seen on server
+        try {
+          await axios.put(`/api/messages/mark/${newMessage._id}`);
+        } catch {
+          // ignore errors here
+        }
       } else {
+        // Update unseen message count for the user or group
         const key = isGroup ? newMessage.groupId : newMessage.senderId;
         setUnseenMessages((prev) => ({
           ...prev,
@@ -124,15 +160,18 @@ export const ChatProvider = ({ children }) => {
     });
   };
 
+  // Unsubscribe socket listener
   const unsubscribefromMessage = () => {
     if (socket) socket.off("newMessage");
   };
 
+  // Manage socket subscription lifecycle
   useEffect(() => {
     subscribeToMessages();
     return () => unsubscribefromMessage();
   }, [socket, selectedUser, selectedGroup]);
 
+  // Delete entire chat with a user
   const deleteChat = async (userId) => {
     try {
       const { data } = await axios.delete(`/api/messages/delete/${userId}`);
@@ -147,6 +186,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Clear all messages in a one-on-one chat with userId
   const clearChat = async (userId) => {
     try {
       const { data } = await axios.delete(`/api/messages/clear/${userId}`);
@@ -161,6 +201,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Delete entire group chat by groupId
   const deleteGroupChat = async (groupId) => {
     try {
       const { data } = await axios.delete(`/api/groups/delete/${groupId}`);
@@ -175,6 +216,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Clear all messages in a group chat by groupId
   const clearGroupChat = async (groupId) => {
     try {
       const { data } = await axios.delete(
@@ -191,6 +233,7 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // Toggle pin/unpin chat by chatId (user or group id)
   const togglePinChat = (chatId) => {
     setPinnedChats((prev) =>
       prev.includes(chatId)
@@ -198,15 +241,19 @@ export const ChatProvider = ({ children }) => {
         : [...prev, chatId]
     );
   };
+
+  // Load pinned chats from localStorage on mount
   useEffect(() => {
     const savedPins = localStorage.getItem("pinnedChats");
     if (savedPins) setPinnedChats(JSON.parse(savedPins));
   }, []);
 
+  // Save pinned chats to localStorage on change
   useEffect(() => {
     localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
   }, [pinnedChats]);
 
+  // Rename a group
   const renameGroup = async (groupId, newName) => {
     try {
       const { data } = await axios.put(`/api/groups/rename/${groupId}`, {
@@ -217,72 +264,78 @@ export const ChatProvider = ({ children }) => {
         setGroups((prev) =>
           prev.map((g) => (g._id === groupId ? { ...g, name: newName } : g))
         );
-        setSelectedGroup((prev) => ({ ...prev, name: newName }));
+        setSelectedGroup((prev) => (prev ? { ...prev, name: newName } : null));
       }
     } catch (error) {
       toast.error(error.message || "Failed to rename group");
     }
   };
 
-const addMemberToGroup = async (groupId, userId) => {
-  try {
-    const { data } = await axios.put(`/api/groups/add/${groupId}`, {
-      userId,
-    });
-    if (data.success) {
-      toast.success(data.message);
-      getGroupMessages(groupId); // Refresh group info
+  // Add a member to group by userId
+  const addMemberToGroup = async (groupId, userId) => {
+    try {
+      const { data } = await axios.put(`/api/groups/add/${groupId}`, {
+        userId,
+      });
+      if (data.success) {
+        toast.success(data.message);
+        getGroupMessages(groupId); // Refresh group messages and info
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to add member");
     }
-  } catch (error) {
-    toast.error(error.message || "Failed to add member");
-  }
-};
-
-const removeMemberFromGroup = async (groupId, userId) => {
-  try {
-    const { data } = await axios.put(`/api/groups/remove/${groupId}`, {
-      userId,
-    });
-    if (data.success) {
-      toast.success(data.message);
-      setSelectedGroup((prev) => ({
-        ...prev,
-        members: prev.members.filter((member) => member._id !== userId),
-      }));
-    }
-  } catch (error) {
-    toast.error(error.message || "Failed to remove member");
-  }
-};
-
-
-  const value = {
-    users,
-    groups,
-    messages,
-    unseenMessages,
-    selectedUser,
-    pinnedChats,
-    togglePinChat,
-    selectedGroup,
-    setSelectedUser,
-    setSelectedGroup,
-    getUsers,
-    getGroups,
-    getMessages,
-    getGroupMessages,
-    setUnseenMessages,
-    sendMessage,
-    sendGroupMessage,
-    deleteChat,
-    deleteGroupChat,
-    clearGroupChat,
-    clearChat,
-    renameGroup,
-    addMemberToGroup,
-    removeMemberFromGroup,
-    socket,
   };
 
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+  // Remove a member from group by userId
+  const removeMemberFromGroup = async (groupId, userId) => {
+    try {
+      const { data } = await axios.put(`/api/groups/remove/${groupId}`, {
+        userId,
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setSelectedGroup((prev) =>
+          prev
+            ? { ...prev, members: prev.members.filter((m) => m._id !== userId) }
+            : null
+        );
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to remove member");
+    }
+  };
+
+  return (
+    <ChatContext.Provider
+      value={{
+        users,
+        groups,
+        messages,
+        unseenMessages,
+        selectedUser,
+        pinnedChats,
+        togglePinChat,
+        selectedGroup,
+        setSelectedUser,
+        setSelectedGroup,
+        getUsers,
+        getGroups,
+        getMessages,
+        getGroupMessages,
+        setUnseenMessages,
+        sendMessage,
+        sendGroupMessage,
+        deleteChat,
+        deleteGroupChat,
+        clearGroupChat,
+        clearChat,
+        renameGroup,
+        addMemberToGroup,
+        removeMemberFromGroup,
+        socket,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
 };

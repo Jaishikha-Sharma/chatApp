@@ -101,7 +101,6 @@ const ChatContainer = () => {
           />
         </div>
 
-        {/* Profile Info Popup */}
         {showProfile && (
           <div className="absolute top-14 left-4 bg-white/90 text-black rounded-lg p-4 shadow-md z-50 w-60">
             <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">
@@ -165,8 +164,18 @@ const ChatContainer = () => {
                 alt="User avatar"
                 className="w-7 rounded-full"
               />
-              <p className="text-gray-500">
+              <p className="text-gray-500 flex items-center gap-1">
                 {formatMessageTime(msg.createdAt)}
+                {msg.senderId === authUser._id && (
+                  <span
+                    className={`ml-1 ${
+                      msg.seen ? "text-blue-500" : "text-gray-400"
+                    } text-sm`}
+                    title={msg.seen ? "Seen" : "Delivered"}
+                  >
+                    ✔
+                  </span>
+                )}
               </p>
             </div>
           </div>
