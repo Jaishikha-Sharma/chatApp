@@ -1,7 +1,6 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import chat from "../assets/chat.avif";
 
 const LoginPage = () => {
   const [currentState, setCurrentState] = useState("Sign Up");
@@ -41,16 +40,19 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f6ff] flex items-center justify-center px-4 py-6">
+    <div className="min-h-screen bg-gray-100  flex items-center justify-center px-4 py-6">
       <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl bg-white max-md:flex-col">
-        <div className="w-1/2 max-md:hidden bg-[#ad46ff] flex items-center justify-center p-12">
-          <img
-            src={chat}
-            alt="Chat"
-            className="w-full h-auto max-w-sm object-contain"
-          />
+        {/* Left Side - Welcome Text */}
+        <div className="w-1/2 max-md:hidden bg-[#225EA8] text-white flex flex-col items-center justify-center p-12 text-center">
+          <h1 className="text-4xl font-bold mb-4">Welcome to ChatVerse</h1>
+          <p className="text-lg opacity-90">
+            Connect. Converse. Collaborate.
+            <br />
+            Join thousands of users chatting in real-time.
+          </p>
         </div>
 
+        {/* Right Side - Form */}
         <form
           onSubmit={onSubmitHandler}
           className="w-1/2 max-md:w-full p-12 flex flex-col justify-center gap-6"
@@ -60,11 +62,9 @@ const LoginPage = () => {
             <button
               type="button"
               onClick={toggleForm}
-              className="text-sm text-[#ad46ff] underline hover:text-[#9c39f0]"
+              className="text-sm text-[#225EA8] underline hover:text-[#174a93]"
             >
-              {currentState === "Sign Up"
-                ? "Switch to Login"
-                : "Switch to Sign Up"}
+              {currentState === "Sign Up" ? "Switch to Login" : "Switch to Sign Up"}
             </button>
           </div>
 
@@ -75,7 +75,7 @@ const LoginPage = () => {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Full Name"
               required
-              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
             />
           )}
 
@@ -87,7 +87,7 @@ const LoginPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
               />
               <input
                 type="password"
@@ -95,7 +95,7 @@ const LoginPage = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
               />
             </>
           )}
@@ -106,7 +106,7 @@ const LoginPage = () => {
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder="Write something about yourself..."
-              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#ad46ff] focus:outline-none"
+              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
             ></textarea>
           )}
 
@@ -116,11 +116,11 @@ const LoginPage = () => {
                 type="checkbox"
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="accent-[#ad46ff] w-4 h-4"
+                className="accent-[#225EA8] w-4 h-4"
                 required
               />
               I agree to the{" "}
-              <span className="underline text-[#ad46ff] hover:text-[#9c39f0] cursor-pointer">
+              <span className="underline text-[#225EA8] hover:text-[#174a93] cursor-pointer">
                 Terms & Conditions
               </span>
             </label>
@@ -131,8 +131,8 @@ const LoginPage = () => {
             disabled={currentState === "Sign Up" && !agreeTerms}
             className={`py-3 rounded-xl font-semibold text-lg transition-all ${
               currentState === "Sign Up" && !agreeTerms
-                ? "bg-[#e6c8ff] text-white cursor-not-allowed"
-                : "bg-[#ad46ff] text-white hover:bg-[#9c39f0] shadow-md"
+                ? "bg-[#b0cffa] text-white cursor-not-allowed"
+                : "bg-[#225EA8] text-white hover:bg-[#174a93] shadow-md"
             }`}
           >
             {currentState === "Sign Up" ? "Create Account" : "Login Now"}
@@ -144,7 +144,7 @@ const LoginPage = () => {
                 Already have an account?{" "}
                 <span
                   onClick={toggleForm}
-                  className="text-[#ad46ff] underline cursor-pointer hover:text-[#9c39f0]"
+                  className="text-[#225EA8] underline cursor-pointer hover:text-[#174a93]"
                 >
                   Login
                 </span>
@@ -154,7 +154,7 @@ const LoginPage = () => {
                 Don’t have an account?{" "}
                 <span
                   onClick={toggleForm}
-                  className="text-[#ad46ff] underline cursor-pointer hover:text-[#9c39f0]"
+                  className="text-[#225EA8] underline cursor-pointer hover:text-[#174a93]"
                 >
                   Sign Up
                 </span>

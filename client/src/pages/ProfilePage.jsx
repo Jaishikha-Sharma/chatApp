@@ -27,20 +27,29 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-cover bg-no-repeat flex items-center justify-center">
-      <div className="w-5/6 max-w-2xl backdrop-blur-2xl text-gray-300 border-2 border-gray-600 flex items-center justify-between max-sm:flex-col-reverse rounded-lg">
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-8"
+      style={{ backgroundColor: "oklch(0.48 0.13 255.73)" }}
+    >
+      <div className="w-full max-w-3xl flex flex-col-reverse md:flex-row items-center justify-between rounded-2xl overflow-hidden shadow-2xl border border-white/20 backdrop-blur-xl bg-white/5">
+        
+        {/* Profile Form */}
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col gap-5 p-10 flex-1"
+          className="flex flex-col gap-6 w-full md:w-3/5 p-6 sm:p-8 bg-white text-[oklch(0.48_0.13_255.73)] rounded-xl"
         >
-          <h3 className="text-lg">Profile Details</h3>
-          <label htmlFor="avatar" className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold mb-2 text-center md:text-left">Profile Details</h2>
+
+          <label
+            htmlFor="avatar"
+            className="flex items-center gap-4 cursor-pointer text-sm"
+          >
             <input
-              onChange={(e) => setSelectedImg(e.target.files[0])}
               type="file"
               id="avatar"
-              accept=".png , .jpg , .jpeg"
+              accept=".png,.jpg,.jpeg"
               hidden
+              onChange={(e) => setSelectedImg(e.target.files[0])}
             />
             <img
               src={
@@ -48,41 +57,46 @@ const ProfilePage = () => {
                   ? URL.createObjectURL(selectedImg)
                   : assets.avatar_icon
               }
-              alt=""
-              className={`w-12 h-12 ${selectedImg && "rounded-full"}`}
+              alt="Avatar"
+              className="w-12 h-12 object-cover rounded-full"
             />
-            upload profile image
+            <span>Upload profile image</span>
           </label>
+
           <input
             type="text"
             required
-            onChange={(e) => setName(e.target.value)}
             value={name}
+            onChange={(e) => setName(e.target.value)}
             placeholder="Your Name"
-            className="p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2"
+            className="p-3 rounded-md bg-gray-100 border border-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[oklch(0.48_0.13_255.73)]"
           />
+
           <textarea
+            value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Write profile bio"
-            required
-            value={bio}
-            className="p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500"
             rows={4}
+            className="p-3 rounded-md bg-gray-100 border border-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[oklch(0.48_0.13_255.73)]"
+            required
           ></textarea>
+
           <button
             type="submit"
-            className="bg-gradient-to-r frm bg-purple-400 to-violet-600 text-white p-2 rounded-full text-lg curosir-pointer "
+            className="mt-2 bg-[oklch(0.48_0.13_255.73)] text-white hover:bg-[oklch(0.48_0.13_255.73)/90] transition-all font-semibold p-3 rounded-full text-lg"
           >
             Save
           </button>
         </form>
-        <img
-          src={authUser?.profilePic || assets.logo_icon}
-          alt=""
-          className={`max-w-44 aspect-square rounded-full mx-10  max-sm:mt-10 ${
-            selectedImg && "rounded-full"
-          }`}
-        />
+
+        {/* Profile Picture */}
+        <div className="w-full md:w-2/5 flex justify-center items-center p-6 sm:p-8">
+          <img
+            src={authUser?.profilePic || assets.logo_icon}
+            alt="Profile"
+            className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-full border-4 border-white/30 shadow-md"
+          />
+        </div>
       </div>
     </div>
   );

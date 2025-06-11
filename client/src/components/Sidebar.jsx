@@ -79,7 +79,9 @@ const Sidebar = () => {
           <div className="flex flex-col leading-5 text-white">
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold">{name}</p>
-              {isPinned(item._id) && <Pin className="w-4 h-4 text-yellow-300" />}
+              {isPinned(item._id) && (
+                <Pin className="w-4 h-4 text-yellow-300" />
+              )}
             </div>
             <span
               className={`text-[13px] ${
@@ -125,9 +127,10 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`bg-[#ad46ff] h-full p-5 rounded-r-xl overflow-y-auto text-white shadow-xl ${
+      className={`h-full p-5 rounded-r-xl overflow-y-auto text-white shadow-xl ${
         selectedUser || selectedGroup ? "max-md:hidden" : ""
       }`}
+      style={{ backgroundColor: "oklch(0.48 0.13 255.73)" }}
     >
       {/* Header */}
       <div className="pb-5">
@@ -199,7 +202,7 @@ const Sidebar = () => {
           <h3 className="text-sm font-semibold">Groups</h3>
           <button
             onClick={() => setShowCreateGroupModal(true)}
-            className="bg-white text-[#ad46ff] text-sm font-semibold px-3 py-1 rounded-full shadow hover:bg-gray-100 transition"
+            className="bg-white text-[black] text-sm font-semibold px-3 py-1 rounded-full shadow hover:bg-gray-100 transition"
           >
             + Create Group
           </button>
