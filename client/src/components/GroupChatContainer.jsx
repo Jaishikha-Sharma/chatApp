@@ -134,7 +134,7 @@ const GroupChatContainer = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-yellow-100"
                 >
-                  🧹 Clear Group Chat
+                   Clear Group Chat
                 </button>
                 <button
                   onClick={() => {
@@ -143,7 +143,7 @@ const GroupChatContainer = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-red-100 text-red-600"
                 >
-                  ❌ Delete Group
+                   Delete Group
                 </button>
               </div>
             )}
