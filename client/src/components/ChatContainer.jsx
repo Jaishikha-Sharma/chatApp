@@ -62,14 +62,7 @@ const ChatContainer = () => {
   };
 
   return selectedUser ? (
-    <div
-      className="h-full overflow-hidden relative"
-      style={{
-        backgroundImage: "url('https://www.transparenttextures.com/patterns/skulls.png')",
-        backgroundColor: "#fff5fa",
-        backgroundSize: "contain",
-      }}
-    >
+    <div className="h-full overflow-hidden relative bg-gray-100">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 py-3 px-4 border-b border-gray-300 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -137,11 +130,11 @@ const ChatContainer = () => {
               className={`flex flex-col ${isSentByMe ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[75%] p-3 text-sm rounded-2xl break-words ${
+                className={`max-w-[75%] p-3 text-sm rounded-xl break-words ${
                   msg.image
                     ? "bg-transparent p-0"
                     : isSentByMe
-                    ? "bg-pink-500 text-white"
+                    ? "bg-purple-500 text-white"
                     : "bg-white text-black border border-gray-200"
                 } shadow-md`}
               >
@@ -149,7 +142,7 @@ const ChatContainer = () => {
                   <img
                     src={msg.image}
                     alt="Chat image"
-                    className="max-w-[250px] rounded-2xl shadow"
+                    className="max-w-[250px] rounded-xl shadow"
                   />
                 ) : (
                   msg.text
@@ -161,7 +154,7 @@ const ChatContainer = () => {
                 {isSentByMe && (
                   <span
                     className={`ml-1 ${
-                      msg.seen ? "text-pink-500" : "text-gray-400"
+                      msg.seen ? "text-purple-500" : "text-gray-400"
                     }`}
                     title={msg.seen ? "Seen" : "Delivered"}
                   >
@@ -206,7 +199,7 @@ const ChatContainer = () => {
       </div>
     </div>
   ) : (
-    <div className="flex flex-col items-center justify-center gap-2 text-gray-500 bg-white/10 max-md:hidden">
+    <div className="flex flex-col items-center justify-center gap-2 text-gray-500 bg-white max-md:hidden">
       <img src={assets.logo_icon} alt="Logo" className="max-w-16" />
       <p className="text-lg font-medium text-black">Chat anytime, anywhere</p>
     </div>

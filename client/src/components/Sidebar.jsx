@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
@@ -23,13 +23,26 @@ const Sidebar = () => {
 
   const { logout, onlineUsers } = useContext(AuthContext);
   const [input, setInput] = useState("");
+  const [activeFilter, setActiveFilter] = useState("All");
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     getUsers();
     getGroups();
   }, [onlineUsers]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const isPinned = (id) => pinnedChats.includes(id);
 
@@ -64,10 +77,10 @@ const Sidebar = () => {
             setSelectedUser(null);
           }
         }}
-        className={`relative flex items-center justify-between px-4 py-2 rounded-xl cursor-pointer transition-all duration-200 ${
+        className={`relative flex items-center justify-between px-4 py-2 cursor-pointer transition-all duration-200 border-b ${
           isSelected
-            ? "bg-white/25 border border-white/40 shadow-md"
-            : "hover:bg-white/10"
+            ? "bg-white/25 border-white/40 shadow-md"
+            : "hover:bg-white/10 border-white/20"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -76,7 +89,7 @@ const Sidebar = () => {
             alt="icon"
             className="w-[40px] h-[40px] object-cover rounded-full border border-white/40 shadow-sm"
           />
-          <div className="flex flex-col leading-5 text-white">
+          <div className="flex flex-col leading-5 text-white w-full">
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold">{name}</p>
               {isPinned(item._id) && (
@@ -113,11 +126,25 @@ const Sidebar = () => {
     (a, b) => isPinned(b._id) - isPinned(a._id)
   );
 
-  const filteredUsers = input
-    ? sortedUsers.filter((user) =>
-        user.fullName.toLowerCase().includes(input.toLowerCase())
-      )
-    : sortedUsers;
+  let filteredUsers = sortedUsers;
+
+  if (input) {
+    filteredUsers = filteredUsers.filter((user) =>
+      user.fullName.toLowerCase().includes(input.toLowerCase())
+    );
+  }
+
+  if (activeFilter === "Online") {
+    filteredUsers = filteredUsers.filter((user) =>
+      onlineUsers.map(String).includes(String(user._id))
+    );
+  }
+
+  if (activeFilter === "Unread") {
+    filteredUsers = filteredUsers.filter(
+      (user) => unseenMessages[user._id] > 0
+    );
+  }
 
   const filteredGroups = input
     ? sortedGroups.filter((group) =>
@@ -136,23 +163,38 @@ const Sidebar = () => {
       <div className="pb-5">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-wide">ChatVerse</h1>
-          <div className="relative py-2 group">
+
+          {/* 3-dot menu */}
+          <div className="relative py-2" ref={menuRef}>
             <img
               src={assets.menu_icon}
               alt="Menu"
               className="max-h-5 cursor-pointer"
+              onClick={() => setShowMenu((prev) => !prev)}
             />
-            <div className="absolute top-full right-0 z-20 w-40 p-3 rounded-lg bg-white text-[black] text-sm hidden group-hover:block space-y-2 shadow-lg">
+            <div
+              className={`absolute top-full right-0 z-20 w-44 p-3 rounded-xl bg-white text-black text-sm space-y-2 shadow-xl transition-all duration-200 ${
+                showMenu
+                  ? "opacity-100 scale-100"
+                  : "opacity-0 scale-95 pointer-events-none"
+              }`}
+            >
               <div
-                onClick={() => navigate("/profile")}
-                className="cursor-pointer hover:text-purple-600 flex items-center gap-2"
+                onClick={() => {
+                  navigate("/profile");
+                  setShowMenu(false);
+                }}
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
               >
                 <Pencil className="w-4 h-4" />
                 Edit Profile
               </div>
               <div
-                onClick={handlePinToggle}
-                className="cursor-pointer flex items-center gap-2"
+                onClick={() => {
+                  handlePinToggle();
+                  setShowMenu(false);
+                }}
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
               >
                 <Pin className="w-4 h-4" />
                 {selectedUser || selectedGroup
@@ -161,10 +203,13 @@ const Sidebar = () => {
                     : "Pin Chat"
                   : "Pin Chat"}
               </div>
-              <hr className="border-gray-200" />
+              <hr className="border-gray-200 my-1" />
               <div
-                onClick={logout}
-                className="cursor-pointer hover:text-red-600 flex items-center gap-2"
+                onClick={() => {
+                  logout();
+                  setShowMenu(false);
+                }}
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-red-100 hover:text-red-600 hover:scale-[1.02]"
               >
                 <LogOut className="w-4 h-4" />
                 Log Out
@@ -173,7 +218,7 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search Input */}
         <div className="bg-white/30 rounded-full flex items-center gap-2 px-4 py-2 mt-5 shadow-inner">
           <img src={assets.search_icon} className="w-4" />
           <input
@@ -183,6 +228,23 @@ const Sidebar = () => {
             onChange={(e) => setInput(e.target.value)}
           />
         </div>
+
+        {/* Filter Buttons */}
+        <div className="flex gap-3 mt-3">
+          {["All", "Online", "Unread"].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`text-sm font-medium px-3 py-1 rounded-full shadow transition-all duration-200 ${
+                activeFilter === filter
+                  ? "bg-white text-purple-600"
+                  : "bg-white/80 text-gray-700 hover:bg-white"
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Users */}
@@ -191,7 +253,7 @@ const Sidebar = () => {
           <h3 className="text-sm font-semibold">Users</h3>
         </div>
         <div className="h-[1px] bg-white/30 mb-3" />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           {filteredUsers.map((user) => renderChatItem(user, "user"))}
         </div>
       </div>
@@ -208,7 +270,7 @@ const Sidebar = () => {
           </button>
         </div>
         <div className="h-[1px] bg-white/30 mb-3" />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           {filteredGroups.map((group) => renderChatItem(group, "group"))}
         </div>
       </div>
