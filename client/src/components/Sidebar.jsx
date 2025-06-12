@@ -93,7 +93,7 @@ const Sidebar = () => {
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold">{name}</p>
               {isPinned(item._id) && (
-                <Pin className="w-4 h-4 text-yellow-300" />
+                <Pin className="w-4 h-4 text-yellow-300 hidden md:block" />
               )}
             </div>
             <span
@@ -110,11 +110,25 @@ const Sidebar = () => {
           </div>
         </div>
 
+        {/* Unread count */}
         {unseenMessages[item._id] > 0 && (
           <div className="min-h-[24px] min-w-[24px] px-[6px] flex items-center justify-center rounded-full bg-white text-[#ad46ff] text-xs font-extrabold shadow-lg border-2 border-[#ad46ff]">
             {unseenMessages[item._id]}
           </div>
         )}
+
+        {/* Mobile Pin toggle */}
+        <div className="md:hidden ml-2">
+          <Pin
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePinChat(item._id);
+            }}
+            className={`w-4 h-4 transition-transform cursor-pointer ${
+              isPinned(item._id) ? "text-yellow-300" : "text-white/30"
+            } hover:scale-110`}
+          />
+        </div>
       </div>
     );
   };
