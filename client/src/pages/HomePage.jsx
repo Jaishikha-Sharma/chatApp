@@ -18,7 +18,7 @@ const HomePage = () => {
         ) : selectedGroup ? (
           <GroupChatContainer />
         ) : (
-          <div className="flex flex-col items-center justify-center text-center p-6 space-y-3 animate-fade-in h-full">
+          <div className="hidden md:flex flex-col items-center justify-center text-center p-6 space-y-3 animate-fade-in h-full">
             <div className="text-3xl md:text-5xl animate-bounce">💬</div>
             <p className="text-sm md:text-base text-gray-500">
               Select a <span className="text-blue-400 font-medium">user</span> or a{" "}
