@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react"; // ✅ import Lucide icons
 
 const LoginPage = () => {
   const [currentState, setCurrentState] = useState("Sign Up");
@@ -10,6 +11,7 @@ const LoginPage = () => {
   const [bio, setBio] = useState("");
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // 👁️ toggle state
 
   const { login, signup } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100  flex items-center justify-center px-4 py-6">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-6">
       <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl bg-white max-md:flex-col">
         {/* Left Side - Welcome Text */}
         <div className="w-1/2 max-md:hidden bg-[#225EA8] text-white flex flex-col items-center justify-center p-12 text-center">
@@ -64,7 +66,9 @@ const LoginPage = () => {
               onClick={toggleForm}
               className="text-sm text-[#225EA8] underline hover:text-[#174a93]"
             >
-              {currentState === "Sign Up" ? "Switch to Login" : "Switch to Sign Up"}
+              {currentState === "Sign Up"
+                ? "Switch to Login"
+                : "Switch to Sign Up"}
             </button>
           </div>
 
@@ -89,14 +93,24 @@ const LoginPage = () => {
                 required
                 className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
               />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-              />
+
+              {/* Password Field with Eye Toggle */}
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="p-3 pr-12 w-full bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
+                />
+                <span
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-3 cursor-pointer text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </span>
+              </div>
             </>
           )}
 
