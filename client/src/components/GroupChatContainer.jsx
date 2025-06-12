@@ -175,7 +175,7 @@ const GroupChatContainer = () => {
                 onClick={handleRename}
                 className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white py-2 text-sm rounded-lg transition duration-150"
               >
-                💾 Rename Group
+                Rename Group
               </button>
             </div>
 
@@ -191,7 +191,7 @@ const GroupChatContainer = () => {
                 e.target.selectedIndex = 0;
               }}
             >
-              <option value="">➕ Add Member</option>
+              <option value="">Add Member</option>
               {users
                 .filter(
                   (u) => !selectedGroup.members.some((m) => m._id === u._id)
