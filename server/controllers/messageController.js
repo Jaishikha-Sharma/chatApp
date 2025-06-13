@@ -1,10 +1,10 @@
 import Message from "../models/Message.js";
 import User from "../models/User.js";
-import cloudinary from "../lib//cloudinary.js";
-import {io , userSocketMap} from "../server.js";
+import cloudinary from "../lib/cloudinary.js";
+import { io, userSocketMap } from "../server.js";
+import { canMessage } from "../lib/roleUtils.js"; 
 
-
-// get all users except the logged-in user
+// Get all users except the logged-in user
 export const getUsersForSidebar = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -34,7 +34,7 @@ export const getUsersForSidebar = async (req, res) => {
   }
 };
 
-// get all msg for selected user
+// Get all messages with selected user
 export const getMessages = async (req, res) => {
   try {
     const { id: selectedUserId } = req.params;
@@ -45,7 +45,7 @@ export const getMessages = async (req, res) => {
         { senderId: myId, receiverId: selectedUserId },
         { senderId: selectedUserId, receiverId: myId },
       ],
-      deletedFor: { $ne: myId }  // ⬅️ Exclude messages deleted for current user
+      deletedFor: { $ne: myId },
     }).sort({ createdAt: 1 });
 
     await Message.updateMany(
@@ -60,7 +60,7 @@ export const getMessages = async (req, res) => {
   }
 };
 
-// api to mark msg as seen
+// Mark message as seen
 export const markMessageAsSeen = async (req, res) => {
   try {
     const { id } = req.params;
@@ -72,12 +72,25 @@ export const markMessageAsSeen = async (req, res) => {
   }
 };
 
-// send msgs to seleted user
+// Send message with role-based restriction
 export const sendMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
+
+    const sender = await User.findById(senderId);
+    const receiver = await User.findById(receiverId);
+
+    // ✅ Check role permissions
+    if (!canMessage(sender, receiver)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are not allowed to message this user without admin approval.",
+      });
+    }
+
     let imageUrl;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image);
@@ -91,11 +104,9 @@ export const sendMessage = async (req, res) => {
       image: imageUrl,
     });
 
-    // emit new msg to the receiver socket
-
     const receiverSocketId = userSocketMap[receiverId];
-    if(receiverSocketId){
-      io.to(receiverSocketId).emit("newMessage" , newMessage);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.json({ success: true, newMessage });
@@ -105,13 +116,12 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-// DELETE chat between logged-in user and selected user
+// Delete chat (soft delete)
 export const deleteChat = async (req, res) => {
   try {
     const myId = req.user._id;
     const otherUserId = req.params.id;
 
-    // Mark messages as deleted for this user
     await Message.updateMany(
       {
         $or: [
@@ -129,6 +139,3 @@ export const deleteChat = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
-

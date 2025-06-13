@@ -25,6 +25,23 @@ const userSchema = new mongoose.Schema(
     bio: {
       type: String,
     },
+    role: {
+      type: String,
+      enum: [
+        "Admin",
+        "Employee",
+        "Project Coordinator",
+        "Freelancer",
+        "Customer",
+      ],
+      required: true,
+    },
+    approvedToChat: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -3,19 +3,29 @@ import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
 import cloudinary from "../lib/cloudinary.js";
 
-// Signup controller
+const validRoles = ["Admin", "Employee", "Project Coordinator", "Freelancer", "Customer"];
+
+// ✅ Signup controller
 export const signup = async (req, res) => {
   try {
     const fullName = req.body.fullName?.trim();
     const email = req.body.email?.trim();
     const password = req.body.password?.trim();
     const bio = req.body.bio?.trim();
+    const role = req.body.role?.trim();
 
     // Check for missing fields
-    if (!fullName || !email || !bio || !password) {
+    if (!fullName || !email || !bio || !password || !role) {
       return res
         .status(400)
         .json({ success: false, message: "Missing Details" });
+    }
+
+    // Check for valid role
+    if (!validRoles.includes(role)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid role" });
     }
 
     // Check if user already exists
@@ -36,11 +46,13 @@ export const signup = async (req, res) => {
       email,
       password: hashedPassword,
       bio,
+      role,
+      approvedToChat: [],
     });
 
     const token = generateToken(newUser._id);
 
-    // Remove password from response
+    // Remove password before sending response
     const { password: _p, ...userWithoutPassword } = newUser._doc;
 
     res.status(201).json({
@@ -55,7 +67,7 @@ export const signup = async (req, res) => {
   }
 };
 
-// Login controller
+// ✅ Login controller
 export const login = async (req, res) => {
   try {
     const email = req.body.email?.trim();
@@ -83,7 +95,6 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(userData._id);
-
     const { password: _p, ...userWithoutPassword } = userData._doc;
 
     res.status(200).json({
@@ -98,18 +109,18 @@ export const login = async (req, res) => {
   }
 };
 
-// check if user is authenticated
+// ✅ Check if user is authenticated
 export const checkAuth = (req, res) => {
   res.json({ success: true, user: req.user });
 };
 
-// update profile
+// ✅ Update profile
 export const updateProfile = async (req, res) => {
   try {
     const { profilePic, bio, fullName } = req.body;
-
     const userId = req.user._id;
     let updatedUser;
+
     if (!profilePic) {
       updatedUser = await User.findByIdAndUpdate(
         userId,
@@ -124,10 +135,55 @@ export const updateProfile = async (req, res) => {
         { new: true }
       );
     }
+
     res.json({ success: true, user: updatedUser });
   } catch (error) {
     console.log(error.message);
-
     res.json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Admin approves chat between 2 users
+export const approveChat = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { userIdToApprove, targetUserId } = req.body;
+
+    const admin = await User.findById(adminId);
+    if (admin.role !== "Admin") {
+      return res.status(403).json({ success: false, message: "Only Admin can approve chats." });
+    }
+
+    // Approve both ways
+    await User.findByIdAndUpdate(userIdToApprove, {
+      $addToSet: { approvedToChat: targetUserId },
+    });
+    await User.findByIdAndUpdate(targetUserId, {
+      $addToSet: { approvedToChat: userIdToApprove },
+    });
+
+    return res.json({ success: true, message: "Users approved to chat." });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get All Users — only for Admin
+export const getAllUsers = async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user._id);
+
+    if (currentUser.role !== "Admin") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only Admin can access all users." });
+    }
+
+    const users = await User.find().select("-password"); // remove password
+    res.json({ success: true, users });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };

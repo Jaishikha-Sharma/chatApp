@@ -1,5 +1,6 @@
+// All imports remain the same
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import CreateGroupModal from "../components/CreateGroupModal.jsx";
@@ -21,7 +22,7 @@ const Sidebar = () => {
     togglePinChat,
   } = useContext(ChatContext);
 
-  const { logout, onlineUsers } = useContext(AuthContext);
+  const { logout, onlineUsers, authUser } = useContext(AuthContext);
   const [input, setInput] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
@@ -132,12 +133,13 @@ const Sidebar = () => {
     );
   };
 
-  const sortedUsers = [...users].sort(
-    (a, b) => isPinned(b._id) - isPinned(a._id)
-  );
-  const sortedGroups = [...groups].sort(
-    (a, b) => isPinned(b._id) - isPinned(a._id)
-  );
+  const sortedUsers = [...users]
+    .sort((a, b) => (unseenMessages[b._id] || 0) - (unseenMessages[a._id] || 0)) // new msgs top
+    .sort((a, b) => isPinned(b._id) - isPinned(a._id)); // pinned top
+
+  const sortedGroups = [...groups]
+    .sort((a, b) => (unseenMessages[b._id] || 0) - (unseenMessages[a._id] || 0))
+    .sort((a, b) => isPinned(b._id) - isPinned(a._id));
 
   let filteredUsers = sortedUsers;
 
@@ -229,8 +231,17 @@ const Sidebar = () => {
           </div>
         </div>
 
+        {authUser?.role === "Admin" && (
+          <Link
+            to="/approve-chat"
+            className="block text-center text-sm font-semibold bg-purple-200 hover:bg-purple-300 text-purple-800 py-2 px-4 rounded-full transition-all duration-200 mb-4"
+          >
+            🛡 Approve Chats
+          </Link>
+        )}
+
         {/* Search Input */}
-        <div className="bg-white/30 rounded-full flex items-center gap-2 px-4 py-2 mt-5 shadow-inner">
+        <div className="bg-white/30 rounded-full flex items-center gap-2 px-4 py-2 mt-1 shadow-inner">
           <img src={assets.search_icon} className="w-4" />
           <input
             className="flex-1 text-sm bg-transparent outline-none text-white placeholder:text-white/80"
@@ -289,7 +300,10 @@ const Sidebar = () => {
       </div>
 
       {/* Scrollable User List */}
-      <div className="overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 370px)" }}>
+      <div
+        className="overflow-y-auto pr-1 custom-scrollbar"
+        style={{ maxHeight: "calc(100vh - 370px)" }}
+      >
         <div className="mb-2 text-sm font-semibold">Users</div>
         <div className="h-[1px] bg-white/30 mb-3" />
         {filteredUsers.map((user) => renderChatItem(user, "user"))}

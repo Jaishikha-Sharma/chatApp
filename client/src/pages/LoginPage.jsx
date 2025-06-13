@@ -1,19 +1,20 @@
 import React, { useState, useContext } from "react";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react"; // ✅ import Lucide icons
+import { Eye, EyeOff } from "lucide-react";
 
 const LoginPage = () => {
   const [currentState, setCurrentState] = useState("Sign Up");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
   const [bio, setBio] = useState("");
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 👁️ toggle state
+  const [showPassword, setShowPassword] = useState(false);
 
-  const { login, signup } = useContext(AuthContext);
+  const { login, signup, authUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const toggleForm = () => {
@@ -22,6 +23,7 @@ const LoginPage = () => {
     setFullName("");
     setEmail("");
     setPassword("");
+    setRole("");
     setBio("");
     setAgreeTerms(false);
   };
@@ -32,12 +34,22 @@ const LoginPage = () => {
       setIsDataSubmitted(true);
       return;
     }
+
     if (currentState === "Sign Up") {
-      await signup({ fullName, email, password, bio });
+      await signup({ fullName, email, password, role, bio });
       toggleForm();
     } else {
       await login("login", { email, password });
-      navigate("/");
+
+      setTimeout(() => {
+        const role = authUser?.role;
+        if (role === "Admin") navigate("/admin-dashboard");
+        else if (role === "Employee") navigate("/employee-panel");
+        else if (role === "Project Coordinator") navigate("/coordinator-panel");
+        else if (role === "Freelancer") navigate("/freelancer-panel");
+        else if (role === "Customer") navigate("/customer-panel");
+        else navigate("/");
+      }, 300);
     }
   };
 
@@ -48,8 +60,7 @@ const LoginPage = () => {
         <div className="w-1/2 max-md:hidden bg-[#225EA8] text-white flex flex-col items-center justify-center p-12 text-center">
           <h1 className="text-4xl font-bold mb-4">Welcome to ChatVerse</h1>
           <p className="text-lg opacity-90">
-            Connect. Converse. Collaborate.
-            <br />
+            Connect. Converse. Collaborate. <br />
             Join thousands of users chatting in real-time.
           </p>
         </div>
@@ -66,21 +77,37 @@ const LoginPage = () => {
               onClick={toggleForm}
               className="text-sm text-[#225EA8] underline hover:text-[#174a93]"
             >
-              {currentState === "Sign Up"
-                ? "Switch to Login"
-                : "Switch to Sign Up"}
+              {currentState === "Sign Up" ? "Switch to Login" : "Switch to Sign Up"}
             </button>
           </div>
 
+          {/* Common Inputs */}
           {currentState === "Sign Up" && !isDataSubmitted && (
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Full Name"
-              required
-              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-            />
+            <>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Full Name"
+                required
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
+              />
+
+              {/* Role Dropdown */}
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                required
+                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
+              >
+                <option value="">Select your role</option>
+                <option value="Admin">Admin</option>
+                <option value="Employee">Employee</option>
+                <option value="Project Coordinator">Project Coordinator</option>
+                <option value="Freelancer">Freelancer</option>
+                <option value="Customer">Customer</option>
+              </select>
+            </>
           )}
 
           {!isDataSubmitted && (
@@ -94,7 +121,6 @@ const LoginPage = () => {
                 className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
               />
 
-              {/* Password Field with Eye Toggle */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}

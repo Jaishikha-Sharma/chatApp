@@ -6,6 +6,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import { Toaster } from "react-hot-toast";
 import { AuthContext } from "../context/AuthContext.jsx";
 import "./index.css";
+import ApproveChat from "../src/pages/ApproveChat.jsx";
 
 const App = () => {
   const { authUser } = useContext(AuthContext);
@@ -27,6 +28,8 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
+              <Route path="/approve-chat" element={<ApproveChat />} />
+
       </Routes>
     </div>
   );
