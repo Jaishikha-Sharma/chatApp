@@ -4,7 +4,7 @@ import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import CreateGroupModal from "../components/CreateGroupModal.jsx";
 import assets from "../assets/assets";
-import { LogOut, Pencil, Pin } from "lucide-react";
+import { LogOut, Pencil, Pin, ChevronDown, ChevronRight } from "lucide-react";
 
 const Sidebar = () => {
   const {
@@ -26,6 +26,7 @@ const Sidebar = () => {
   const [activeFilter, setActiveFilter] = useState("All");
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showGroups, setShowGroups] = useState(true);
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -110,14 +111,12 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Unread count */}
         {unseenMessages[item._id] > 0 && (
           <div className="min-h-[24px] min-w-[24px] px-[6px] flex items-center justify-center rounded-full bg-white text-[#ad46ff] text-xs font-extrabold shadow-lg border-2 border-[#ad46ff]">
             {unseenMessages[item._id]}
           </div>
         )}
 
-        {/* Mobile Pin toggle */}
         <div className="md:hidden ml-2">
           <Pin
             onClick={(e) => {
@@ -168,7 +167,7 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`h-full p-5 rounded-r-xl overflow-y-auto text-white shadow-xl ${
+      className={`h-full p-5 rounded-r-xl overflow-hidden text-white shadow-xl ${
         selectedUser || selectedGroup ? "max-md:hidden" : ""
       }`}
       style={{ backgroundColor: "oklch(0.48 0.13 255.73)" }}
@@ -177,8 +176,6 @@ const Sidebar = () => {
       <div className="pb-5">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-wide">ChatVerse</h1>
-
-          {/* 3-dot menu */}
           <div className="relative py-2" ref={menuRef}>
             <img
               src={assets.menu_icon}
@@ -261,32 +258,41 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Users */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold">Users</h3>
+      {/* Groups Toggle Section */}
+      <div className="mt-1 mb-4">
+        <div
+          onClick={() => setShowGroups(!showGroups)}
+          className="flex justify-between items-center cursor-pointer px-1 py-2 text-sm font-semibold"
+        >
+          <span>Groups</span>
+          {showGroups ? (
+            <ChevronDown className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
         </div>
-        <div className="h-[1px] bg-white/30 mb-3" />
-        <div className="flex flex-col">
-          {filteredUsers.map((user) => renderChatItem(user, "user"))}
-        </div>
+        {showGroups && (
+          <>
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => setShowCreateGroupModal(true)}
+                className="bg-white text-black text-xs font-medium px-3 py-1 rounded-full shadow hover:bg-gray-100"
+              >
+                + Create Group
+              </button>
+            </div>
+            <div className="flex flex-col">
+              {filteredGroups.map((group) => renderChatItem(group, "group"))}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Groups */}
-      <div className="mt-8">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-sm font-semibold">Groups</h3>
-          <button
-            onClick={() => setShowCreateGroupModal(true)}
-            className="bg-white text-[black] text-sm font-semibold px-3 py-1 rounded-full shadow hover:bg-gray-100 transition"
-          >
-            + Create Group
-          </button>
-        </div>
+      {/* Scrollable User List */}
+      <div className="overflow-y-auto pr-1" style={{ maxHeight: "calc(100vh - 370px)" }}>
+        <div className="mb-2 text-sm font-semibold">Users</div>
         <div className="h-[1px] bg-white/30 mb-3" />
-        <div className="flex flex-col">
-          {filteredGroups.map((group) => renderChatItem(group, "group"))}
-        </div>
+        {filteredUsers.map((user) => renderChatItem(user, "user"))}
       </div>
 
       {showCreateGroupModal && (
