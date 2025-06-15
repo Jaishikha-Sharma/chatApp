@@ -8,10 +8,36 @@ import { canMessage } from "../lib/roleUtils.js";
 export const getUsersForSidebar = async (req, res) => {
   try {
     const userId = req.user._id;
-    const filteredUsers = await User.find({
-      _id: { $ne: userId },
-    }).select("-password");
+    const userRole = req.user.role;
 
+    let filteredUsers;
+
+    if (userRole === "Admin" || userRole === "Project Coordinator") {
+      filteredUsers = await User.find({ _id: { $ne: userId } }).select("-password");
+    } else {
+      const messages = await Message.find({
+        $or: [
+          { senderId: userId },
+          { receiverId: userId },
+        ],
+      });
+
+      const userIds = new Set();
+      messages.forEach((msg) => {
+        if (msg.senderId.toString() !== userId.toString()) {
+          userIds.add(msg.senderId.toString());
+        }
+        if (msg.receiverId.toString() !== userId.toString()) {
+          userIds.add(msg.receiverId.toString());
+        }
+      });
+
+      filteredUsers = await User.find({
+        _id: { $in: Array.from(userIds) },
+      }).select("-password");
+    }
+
+    // Calculate unseen messages
     const unseenMessages = {};
     const promises = filteredUsers.map(async (user) => {
       const messages = await Message.find({

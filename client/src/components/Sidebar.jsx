@@ -1,4 +1,4 @@
-// All imports remain the same
+
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContext.jsx";

@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
 import cloudinary from "../lib/cloudinary.js";
+import Message from "../models/Message.js";
 
 const validRoles = ["Admin", "Employee", "Project Coordinator", "Freelancer", "Customer"];
 
@@ -174,16 +175,27 @@ export const getAllUsers = async (req, res) => {
   try {
     const currentUser = await User.findById(req.user._id);
 
-    if (currentUser.role !== "Admin") {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only Admin can access all users." });
+    if (!currentUser) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const users = await User.find().select("-password"); // remove password
+    let users = [];
+
+    // Admin & Project Coordinator => see all users
+    if (["Admin", "Project Coordinator"].includes(currentUser.role)) {
+      users = await User.find({ _id: { $ne: currentUser._id } }).select("-password");
+    } else {
+      // Other roles => show only users they've messaged with or received messages from
+      const sent = await Message.find({ senderId: currentUser._id }).distinct("receiverId");
+      const received = await Message.find({ receiverId: currentUser._id }).distinct("senderId");
+
+      const userIds = Array.from(new Set([...sent, ...received])); // unique list
+      users = await User.find({ _id: { $in: userIds } }).select("-password");
+    }
+
     res.json({ success: true, users });
   } catch (error) {
-    console.log(error.message);
+    console.log("getAllUsers error:", error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
