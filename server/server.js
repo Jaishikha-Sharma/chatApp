@@ -7,7 +7,7 @@ import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import groupRouter from "./routes/groupRouter.js";
 import { Server } from "socket.io";
-import User from "./models/User.js"; // ✅ Added for lastSeen update
+import User from "./models/User.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -60,7 +60,6 @@ io.on("connection", (socket) => {
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-    // ✅ Update lastSeen
     if (userId) {
       try {
         await User.findByIdAndUpdate(userId, { lastSeen: new Date() });

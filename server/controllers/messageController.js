@@ -102,7 +102,6 @@ export const markMessageAsSeen = async (req, res) => {
 };
 
 // Send message with role-based restriction
-// Send message with role-based restriction and forbidden content check
 export const sendMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
@@ -164,7 +163,6 @@ export const sendMessage = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // Delete chat (soft delete)
 export const deleteChat = async (req, res) => {
