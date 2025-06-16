@@ -128,6 +128,7 @@ export const ChatProvider = ({ children }) => {
   const subscribeToMessages = () => {
     if (!socket) return;
 
+    // 🔹 Listen for new messages
     socket.on("newMessage", async (newMessage) => {
       const isGroup = newMessage.isGroup;
       const isActive =
@@ -138,19 +139,19 @@ export const ChatProvider = ({ children }) => {
         newMessage.seen = true;
 
         setMessages((prev) => {
-          // Prevent duplicate messages
+          // Avoid duplicates
           if (prev.some((msg) => msg._id === newMessage._id)) return prev;
           return [...prev, newMessage];
         });
 
-        // Mark message as seen on server
+        // Mark as seen on server
         try {
           await axios.put(`/api/messages/mark/${newMessage._id}`);
         } catch {
-          // ignore errors here
+          // optional: silent fail
         }
       } else {
-        // Update unseen message count for the user or group
+        // Increment unseen count
         const key = isGroup ? newMessage.groupId : newMessage.senderId;
         setUnseenMessages((prev) => ({
           ...prev,
@@ -158,11 +159,26 @@ export const ChatProvider = ({ children }) => {
         }));
       }
     });
+
+    // 🔹 Listen for edited messages
+    socket.on("messageEdited", (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
+    });
   };
 
   // Unsubscribe socket listener
   const unsubscribefromMessage = () => {
-    if (socket) socket.off("newMessage");
+    if (!socket) return;
+
+    // Check if off is callable
+    if (typeof socket.off === "function") {
+      socket.off("newMessage");
+      socket.off("messageEdited");
+    }
   };
 
   // Manage socket subscription lifecycle
@@ -305,6 +321,28 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const editMessage = async (messageId, newText) => {
+    try {
+      const { data } = await axios.put(`/api/messages/edit/${messageId}`, {
+        newText,
+      });
+
+      if (data.success) {
+        const updatedMessage = data.message;
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === updatedMessage._id ? updatedMessage : msg
+          )
+        );
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to edit message");
+    }
+  };
+
   return (
     <ChatContext.Provider
       value={{
@@ -328,6 +366,7 @@ export const ChatProvider = ({ children }) => {
         deleteChat,
         deleteGroupChat,
         clearGroupChat,
+        editMessage,
         clearChat,
         renameGroup,
         addMemberToGroup,

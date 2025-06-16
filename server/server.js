@@ -7,6 +7,7 @@ import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import groupRouter from "./routes/groupRouter.js";
 import { Server } from "socket.io";
+import User from "./models/User.js"; // ✅ Added for lastSeen update
 
 const app = express();
 const server = http.createServer(app);
@@ -30,7 +31,6 @@ io.on("connection", (socket) => {
 
   // handle marking a message as seen
   socket.on("markMessageSeen", ({ messageId, senderId }) => {
-    // Notify the sender that their message was seen
     if (senderId && userSocketMap[senderId]) {
       const senderSocketId = userSocketMap[senderId];
       io.to(senderSocketId).emit("messageSeenUpdate", { messageId });
@@ -54,11 +54,20 @@ io.on("connection", (socket) => {
     }
   });
 
-  // on disconnect
-  socket.on("disconnect", () => {
+  // disconnect logic
+  socket.on("disconnect", async () => {
     console.log("User disconnected", userId);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
+    // ✅ Update lastSeen
+    if (userId) {
+      try {
+        await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+      } catch (err) {
+        console.error("Error updating lastSeen:", err.message);
+      }
+    }
   });
 });
 

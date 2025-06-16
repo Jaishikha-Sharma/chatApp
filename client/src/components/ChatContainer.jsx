@@ -14,17 +14,44 @@ const ChatContainer = () => {
     sendMessage,
     getMessages,
     deleteChat,
+    editMessage,
   } = useContext(ChatContext);
+
   const { authUser, onlineUsers } = useContext(AuthContext);
 
   const [input, setInput] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [editingMsgId, setEditingMsgId] = useState(null);
   const scrollEnd = useRef();
   const [showProfile, setShowProfile] = useState(false);
+
+  // ✅ Get user status function
+  const getUserStatus = (user) => {
+    if (onlineUsers.includes(user._id)) return "Active";
+
+    const lastSeen = new Date(user.updatedAt);
+    const now = new Date();
+    const diff = Math.floor((now - lastSeen) / 60000); // in minutes
+
+    if (diff < 10) return "Away";
+    if (diff < 60) return `Last seen: ${diff} min ago`;
+    if (diff < 1440) return `Last seen: ${Math.floor(diff / 60)} hr ago`;
+
+    return `Last seen: ${Math.floor(diff / 1440)} day(s) ago`;
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (input.trim() === "") return;
-    await sendMessage({ text: input.trim() });
+
+    if (editMode) {
+      await editMessage(editingMsgId, input.trim());
+      setEditMode(false);
+      setEditingMsgId(null);
+    } else {
+      await sendMessage({ text: input.trim() });
+    }
+
     setInput("");
   };
 
@@ -71,15 +98,18 @@ const ChatContainer = () => {
             alt="User avatar"
             className="w-8 h-8 rounded-full"
           />
-          <p
-            className="text-lg text-black font-semibold flex items-center gap-2 cursor-pointer"
-            onClick={() => setShowProfile(!showProfile)}
-          >
-            {selectedUser.fullName}
-            {onlineUsers.includes(selectedUser._id) && (
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            )}
-          </p>
+          <div className="flex flex-col cursor-pointer" onClick={() => setShowProfile(!showProfile)}>
+            <p className="text-lg text-black font-semibold">{selectedUser.fullName}</p>
+            <span
+              className={`text-xs font-medium ${
+                onlineUsers.includes(selectedUser._id)
+                  ? "text-green-500"
+                  : "text-gray-500"
+              }`}
+            >
+              {getUserStatus(selectedUser)}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 text-black">
@@ -108,9 +138,7 @@ const ChatContainer = () => {
               />
               <div>
                 <p className="font-medium">{selectedUser.fullName}</p>
-                <p className="text-sm text-gray-600">
-                  {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
-                </p>
+                <p className="text-sm text-gray-600">{getUserStatus(selectedUser)}</p>
               </div>
             </div>
             {selectedUser.email && (
@@ -124,6 +152,8 @@ const ChatContainer = () => {
       <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 space-y-3">
         {messages.map((msg) => {
           const isSentByMe = msg.senderId === authUser._id;
+          const isEditingThis = editMode && editingMsgId === msg._id;
+
           return (
             <div
               key={msg._id}
@@ -145,7 +175,61 @@ const ChatContainer = () => {
                     className="max-w-[250px] rounded-xl shadow"
                   />
                 ) : (
-                  msg.text
+                  <>
+                    {isEditingThis ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSendMessage(e);
+                            if (e.key === "Escape") {
+                              setEditMode(false);
+                              setEditingMsgId(null);
+                              setInput("");
+                            }
+                          }}
+                          autoFocus
+                          className="bg-transparent border-b border-white outline-none text-sm w-full"
+                        />
+                        <button
+                          className="text-xs hover:text-green-300"
+                          onClick={handleSendMessage}
+                          title="Save"
+                        >
+                          ✅
+                        </button>
+                        <button
+                          className="text-xs hover:text-red-300"
+                          onClick={() => {
+                            setEditMode(false);
+                            setEditingMsgId(null);
+                            setInput("");
+                          }}
+                          title="Cancel"
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>{msg.text}</span>
+                        {isSentByMe && (
+                          <button
+                            className="text-xs hover:text-yellow-200"
+                            title="Edit Message"
+                            onClick={() => {
+                              setEditMode(true);
+                              setEditingMsgId(msg._id);
+                              setInput(msg.text);
+                            }}
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -176,7 +260,7 @@ const ChatContainer = () => {
             value={input}
             onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
             type="text"
-            placeholder="Send a message..."
+            placeholder={editMode ? "Edit message..." : "Send a message..."}
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
           <input

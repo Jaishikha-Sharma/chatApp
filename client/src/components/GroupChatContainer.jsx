@@ -28,6 +28,13 @@ const GroupChatContainer = () => {
   const [showOptions, setShowOptions] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
 
+  // For mention functionality:
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStartPos, setMentionStartPos] = useState(null);
+  const inputRef = useRef(null);
+
   useEffect(() => {
     if (selectedGroup) {
       getGroupMessages(selectedGroup._id);
@@ -41,11 +48,75 @@ const GroupChatContainer = () => {
     }, 100);
   }, [messages]);
 
+  // Handle input change to detect @ mentions
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setInput(val);
+
+    // Find if there's a @ before the cursor, and no space after it yet
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (
+      atIndex !== -1 &&
+      (atIndex === 0 || /\s/.test(textBeforeCursor[atIndex - 1])) // '@' is at start or preceded by space
+    ) {
+      const query = textBeforeCursor.slice(atIndex + 1);
+      // Show mention list if query is alphanumeric (allow letters, numbers, underscore)
+      if (/^[\w]{0,20}$/.test(query)) {
+        setMentionQuery(query);
+        setMentionStartPos(atIndex);
+        // Filter users in selectedGroup matching the query (case insensitive)
+        const matchedUsers = selectedGroup.members.filter((m) =>
+          m.fullName.toLowerCase().includes(query.toLowerCase())
+        );
+        setMentionSuggestions(matchedUsers);
+        setShowMentionList(matchedUsers.length > 0);
+      } else {
+        setShowMentionList(false);
+        setMentionSuggestions([]);
+        setMentionStartPos(null);
+      }
+    } else {
+      setShowMentionList(false);
+      setMentionSuggestions([]);
+      setMentionStartPos(null);
+    }
+  };
+
+  // Insert mention in the input when clicked or selected from list
+  const insertMention = (user) => {
+    if (mentionStartPos === null) return;
+
+    const beforeMention = input.slice(0, mentionStartPos);
+    const afterMention = input.slice(inputRef.current.selectionStart);
+
+    const mentionText = `@${user.fullName}`;
+
+    const newInput = beforeMention + mentionText + " " + afterMention;
+    setInput(newInput);
+
+    // Move cursor after inserted mention plus a space
+    setTimeout(() => {
+      const pos = beforeMention.length + mentionText.length + 1;
+      inputRef.current.focus();
+      inputRef.current.setSelectionRange(pos, pos);
+    }, 0);
+
+    setShowMentionList(false);
+    setMentionSuggestions([]);
+    setMentionStartPos(null);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
     await sendGroupMessage({ text: input.trim() });
     setInput("");
+    setShowMentionList(false);
+    setMentionSuggestions([]);
+    setMentionStartPos(null);
   };
 
   const handleSendImage = async (e) => {
@@ -134,7 +205,7 @@ const GroupChatContainer = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-yellow-100"
                 >
-                   Clear Group Chat
+                  Clear Group Chat
                 </button>
                 <button
                   onClick={() => {
@@ -143,7 +214,7 @@ const GroupChatContainer = () => {
                   }}
                   className="w-full text-left px-4 py-2 hover:bg-red-100 text-red-600"
                 >
-                   Delete Group
+                  Delete Group
                 </button>
               </div>
             )}
@@ -289,26 +360,49 @@ const GroupChatContainer = () => {
       </div>
 
       {/* Input */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3">
-        <div className="flex-1 flex items-center bg-gray-100/90 px-3 rounded-full">
+      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3 bg-white">
+        <div className="flex-1 flex flex-col relative">
           <input
+            ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !showMentionList) {
+                handleSendMessage(e);
+              }
+              // Keyboard navigation for mention list
+              if (showMentionList) {
+                // We'll skip complex keyboard navigation here for brevity,
+                // but you can enhance this later
+              }
+            }}
             placeholder="Send a message"
-            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-black placeholder-gray-500 bg-transparent"
+            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-black placeholder-gray-500 bg-gray-100"
           />
-          <input
-            type="file"
-            id="group-image"
-            onChange={handleSendImage}
-            accept="image/*"
-            hidden
-          />
-          <label htmlFor="group-image" className="mr-2 cursor-pointer">
-            <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
-          </label>
+          {showMentionList && (
+            <ul className="absolute bottom-full mb-1 max-h-40 w-full overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-50">
+              {mentionSuggestions.map((user) => (
+                <li
+                  key={user._id}
+                  onClick={() => insertMention(user)}
+                  className="px-3 py-2 cursor-pointer hover:bg-blue-100"
+                >
+                  {user.fullName}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        <input
+          type="file"
+          id="group-image"
+          onChange={handleSendImage}
+          accept="image/*"
+          hidden
+        />
+        <label htmlFor="group-image" className="mr-2 cursor-pointer">
+          <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
+        </label>
         <img
           src={assets.send_button}
           alt="Send"
