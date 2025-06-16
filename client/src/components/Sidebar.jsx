@@ -169,7 +169,7 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`h-full p-5 rounded-r-xl overflow-hidden text-white shadow-xl ${
+      className={`h-full p-5 overflow-hidden text-white shadow-xl ${
         selectedUser || selectedGroup ? "max-md:hidden" : ""
       }`}
       style={{ backgroundColor: "oklch(0.48 0.13 255.73)" }}

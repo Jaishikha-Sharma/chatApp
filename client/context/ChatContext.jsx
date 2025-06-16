@@ -15,21 +15,23 @@ export const ChatProvider = ({ children }) => {
 
   const { socket, axios } = useContext(AuthContext);
 
-  // === Forbidden info detection ===
+  // === Forbidden content detection ===
   const forbiddenPatterns = [
-    /\b\d{10,15}\b/, // phone numbers (10 to 15 digit numbers)
+    /\b\d{10,15}\b/, // 10-15 digit numbers (phones)
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // email addresses
-    /@\w+/, // social media handles like @username
-    /(https?:\/\/[^\s]+)/, // URLs starting with http(s)
-    /pay(pay|tm|pal)?\.com/, // payment links (basic)
+    /@\w+/, // @socialHandles
+    /(https?:\/\/[^\s]+)/, // URLs
+    /(paytm|gpay|phonepe|paypal|upi|paynow|pay\.com)/i, // payment services
   ];
 
   const containsForbiddenInfo = (text) => {
     if (!text) return false;
-    return forbiddenPatterns.some((pattern) => pattern.test(text));
+    const normalized = text.toLowerCase().replace(/\s|[-_.]/g, "");
+    return forbiddenPatterns.some((pattern) =>
+      pattern.test(text) || pattern.test(normalized)
+    );
   };
 
-  // Fetch all users and unseen message counts
   const getUsers = async () => {
     try {
       const { data } = await axios.get("/api/messages/users");
@@ -42,7 +44,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Fetch all groups
   const getGroups = async () => {
     try {
       const { data } = await axios.get("/api/groups");
@@ -54,32 +55,25 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Fetch messages for one-on-one chat with userId, mark unseen as seen
   const getMessages = async (userId) => {
     setSelectedGroup(null);
     try {
       const { data } = await axios.get(`/api/messages/${userId}`);
       if (data.success) {
-        // Mark unseen messages from this user as seen locally
         const updatedMessages = data.messages.map((msg) =>
           !msg.seen && msg.senderId === userId ? { ...msg, seen: true } : msg
         );
         setMessages(updatedMessages);
 
-        // Mark unseen messages as seen on server
         const unseen = data.messages.filter(
           (msg) => !msg.seen && msg.senderId === userId
         );
-
         await Promise.all(
           unseen.map((msg) =>
-            axios.put(`/api/messages/mark/${msg._id}`).catch((err) => {
-              console.error("Failed to mark seen:", msg._id, err.message);
-            })
+            axios.put(`/api/messages/mark/${msg._id}`).catch(() => {})
           )
         );
 
-        // Remove unseen count from sidebar for this user
         setUnseenMessages((prev) => {
           const updated = { ...prev };
           delete updated[userId];
@@ -91,7 +85,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Fetch messages for a group chat by groupId
   const getGroupMessages = async (groupId) => {
     setSelectedUser(null);
     try {
@@ -104,13 +97,12 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Send one-on-one message to selectedUser with forbidden info check
   const sendMessage = async (messageData) => {
     if (!selectedUser) return;
 
     if (containsForbiddenInfo(messageData.text)) {
       toast.error(
-        "Your message contains sensitive information (phone, email, social handles, payment links) which is not allowed."
+        "Message contains restricted info (phone, email, links, social, payments)."
       );
       return;
     }
@@ -130,32 +122,29 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Send message in selected group; socket will handle updating messages
- const sendGroupMessage = async (messageData) => {
-  if (!selectedGroup) return;
+  const sendGroupMessage = async (messageData) => {
+    if (!selectedGroup) return;
 
-  if (containsForbiddenInfo(messageData.text)) {
-    toast.error(
-      "Your message contains sensitive information (phone, email, social handles, payment links) which is not allowed."
-    );
-    return;
-  }
-
-  try {
-    const { data } = await axios.post(
-      `/api/groups/group/send/${selectedGroup._id}`,
-      messageData
-    );
-    if (!data.success) {
-      toast.error(data.message);
+    if (containsForbiddenInfo(messageData.text)) {
+      toast.error(
+        "Group message contains restricted info (phone, email, links, social, payments)."
+      );
+      return;
     }
-  } catch (error) {
-    toast.error(error.message || "Failed to send group message");
-  }
-};
 
+    try {
+      const { data } = await axios.post(
+        `/api/groups/group/send/${selectedGroup._id}`,
+        messageData
+      );
+      if (!data.success) {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to send group message");
+    }
+  };
 
-  // Subscribe to incoming new messages via socket.io
   const subscribeToMessages = () => {
     if (!socket) return;
 
@@ -167,17 +156,15 @@ export const ChatProvider = ({ children }) => {
 
       if (isActive) {
         newMessage.seen = true;
-
-        setMessages((prev) => {
-          if (prev.some((msg) => msg._id === newMessage._id)) return prev;
-          return [...prev, newMessage];
-        });
+        setMessages((prev) =>
+          prev.some((msg) => msg._id === newMessage._id)
+            ? prev
+            : [...prev, newMessage]
+        );
 
         try {
           await axios.put(`/api/messages/mark/${newMessage._id}`);
-        } catch {
-          // silent fail
-        }
+        } catch {}
       } else {
         const key = isGroup ? newMessage.groupId : newMessage.senderId;
         setUnseenMessages((prev) => ({
@@ -189,8 +176,7 @@ export const ChatProvider = ({ children }) => {
   };
 
   const unsubscribefromMessage = () => {
-    if (!socket) return;
-    if (typeof socket.off === "function") {
+    if (socket && typeof socket.off === "function") {
       socket.off("newMessage");
     }
   };

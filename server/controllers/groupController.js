@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import mongoose from "mongoose";
 import { io } from "../server.js";
 import Message from "../models/Message.js";
+import cloudinary from "../lib/cloudinary.js";
 
 // Create a group
 export const createGroup = async (req, res) => {
@@ -71,12 +72,10 @@ export const addMemberToGroup = async (req, res) => {
     }
 
     if (group.members.includes(userId)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "User is already a member of this group",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "User is already a member of this group",
+      });
     }
 
     group.members.push(userId);
@@ -203,9 +202,6 @@ export const deleteGroup = async (req, res) => {
 };
 
 // Send message to group
-import { canMessage } from "../lib/roleUtils.js";
-import cloudinary from "../lib/cloudinary.js";
-
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
@@ -215,41 +211,50 @@ export const sendGroupMessage = async (req, res) => {
     // Fetch group to check membership
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ success: false, message: "Group not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Group not found" });
     }
 
     // Check if sender is a member of the group
-    if (!group.members.some((member) => member.toString() === senderId.toString())) {
+    if (
+      !group.members.some((member) => member.toString() === senderId.toString())
+    ) {
       return res.status(403).json({
         success: false,
         message: "You are not a member of this group and cannot send messages.",
       });
     }
 
-    // Optional: You can add more role-based restrictions here
-    // For example, check canMessage permission per member roles in group
-
-    // Forbidden patterns to block phone numbers, emails, social media handles, payment links etc.
-    const forbiddenPatterns = [
-      /\b\d{10,}\b/g, // simple phone numbers (10 or more digits)
-      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // emails
-      /https?:\/\/[^\s]+/gi, // URLs (including payment links)
-      /(@[a-zA-Z0-9_]+)/gi, // social media handles like @username
-    ];
-
+    // Extended forbidden patterns with circumvention tricks
     const containsForbiddenInfo = (text) => {
       if (!text) return false;
+
+      const forbiddenPatterns = [
+        /\b\d{10,}\b/g, // 10+ digit phone numbers
+        /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+)/gi, // emails
+        /https?:\/\/[^\s]+/gi, // URLs
+        /(@[a-zA-Z0-9_]+)/gi, // @handles
+        /\b(?:at\s+)?gmail(?:\s+dot\s+)?com\b/gi, // "at gmail dot com"
+        /\b(?:at\s+)?yahoo(?:\s+dot\s+)?com\b/gi,
+        /\b(?:[nN]ine|[eE]ight|[sS]even|[sS]ix|[fF]ive|[fF]our|[tT]hree|[tT]wo|[oO]ne|[zZ]ero)\b/gi, // spelled numbers
+        /\b(?:dotcom|dotnet|dotorg)\b/gi, // disguised domains
+        /\b(?:upi|paytm|phonepe|gpay|google pay|amazon pay|payment|account number|bank)\b/gi, // payment-related
+      ];
+
       return forbiddenPatterns.some((pattern) => pattern.test(text));
     };
 
+    // Block if message contains forbidden content
     if (containsForbiddenInfo(text)) {
       return res.status(400).json({
         success: false,
         message:
-          "Message contains forbidden information such as phone numbers, emails, social media handles, or payment links.",
+          "Message contains forbidden content such as phone numbers, emails, social media handles, or payment details.",
       });
     }
 
+    // Optional image upload
     let imageUrl;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image);
@@ -264,10 +269,10 @@ export const sendGroupMessage = async (req, res) => {
       image: imageUrl,
     });
 
-    // Emit newMessage event to all group members (or room)
+    // Emit new group message via Socket.IO
     io.to(groupId.toString()).emit("newMessage", {
       ...newMessage._doc,
-      senderId: req.user, // populate sender details if needed
+      senderId: req.user,
       isGroup: true,
       groupId,
     });
@@ -278,7 +283,6 @@ export const sendGroupMessage = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // Get group messages (excluding cleared ones)
 export const getGroupMessages = async (req, res) => {
