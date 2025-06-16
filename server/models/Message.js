@@ -25,6 +25,10 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+     audio: {
+      type: String, 
+    },
+     duration: String,
     seen: {
       type: Boolean,
       default: false,

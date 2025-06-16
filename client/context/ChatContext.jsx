@@ -15,7 +15,6 @@ export const ChatProvider = ({ children }) => {
 
   const { socket, axios } = useContext(AuthContext);
 
-  // === Forbidden content detection ===
   const forbiddenPatterns = [
     /\b\d{10,15}\b/,
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
@@ -27,8 +26,8 @@ export const ChatProvider = ({ children }) => {
   const containsForbiddenInfo = (text) => {
     if (!text) return false;
     const normalized = text.toLowerCase().replace(/\s|[-_.]/g, "");
-    return forbiddenPatterns.some((pattern) =>
-      pattern.test(text) || pattern.test(normalized)
+    return forbiddenPatterns.some(
+      (pattern) => pattern.test(text) || pattern.test(normalized)
     );
   };
 
@@ -100,18 +99,24 @@ export const ChatProvider = ({ children }) => {
   const sendMessage = async (messageData) => {
     if (!selectedUser) return;
 
-    if (containsForbiddenInfo(messageData.text)) {
-      toast.error(
-        "Message contains restricted info (phone, email, links, social, payments)."
-      );
+    if (messageData.text && containsForbiddenInfo(messageData.text)) {
+      toast.error("Message contains restricted info.");
       return;
     }
 
     try {
+      const formData = new FormData();
+      if (messageData.text) formData.append("text", messageData.text);
+      if (messageData.audio) formData.append("audio", messageData.audio);
+
       const { data } = await axios.post(
         `/api/messages/send/${selectedUser._id}`,
-        messageData
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
       );
+
       if (data.success) {
         setMessages((prev) => [...prev, data.newMessage]);
       } else {
@@ -125,18 +130,24 @@ export const ChatProvider = ({ children }) => {
   const sendGroupMessage = async (messageData) => {
     if (!selectedGroup) return;
 
-    if (containsForbiddenInfo(messageData.text)) {
-      toast.error(
-        "Group message contains restricted info (phone, email, links, social, payments)."
-      );
+    if (messageData.text && containsForbiddenInfo(messageData.text)) {
+      toast.error("Group message contains restricted info.");
       return;
     }
 
     try {
+      const formData = new FormData();
+      if (messageData.text) formData.append("text", messageData.text);
+      if (messageData.audio) formData.append("audio", messageData.audio);
+
       const { data } = await axios.post(
         `/api/groups/group/send/${selectedGroup._id}`,
-        messageData
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
       );
+
       if (!data.success) {
         toast.error(data.message);
       }

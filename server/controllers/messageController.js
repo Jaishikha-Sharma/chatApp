@@ -104,13 +104,14 @@ export const markMessageAsSeen = async (req, res) => {
 // Send message with role-based restriction
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, duration, audio } = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
 
     const sender = await User.findById(senderId);
     const receiver = await User.findById(receiverId);
 
+    // Role restriction
     if (!canMessage(sender, receiver)) {
       return res.status(403).json({
         success: false,
@@ -118,12 +119,12 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Forbidden patterns to block phone numbers, emails, social media handles, payment links etc.
+    // Block sensitive info
     const forbiddenPatterns = [
-      /\b\d{10,}\b/g, // simple phone numbers (10 or more digits)
-      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // emails
-      /https?:\/\/[^\s]+/gi, // URLs (including payment links)
-      /(@[a-zA-Z0-9_]+)/gi, // social media handles like @username
+      /\b\d{10,}\b/g, // phone numbers
+      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // email
+      /https?:\/\/[^\s]+/gi, // URLs
+      /(@[a-zA-Z0-9_]+)/gi, // social handles
     ];
 
     const containsForbiddenInfo = (text) => {
@@ -135,23 +136,44 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Message contains forbidden information such as phone numbers, emails, social media handles, or payment links.",
+          "Message contains forbidden info such as phone numbers, emails, social media handles, or payment links.",
       });
     }
 
+    // Upload image if present
     let imageUrl;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }
 
+    // Handle audio
+    let audioUrl;
+
+    // Option 1: multer-based audio file
+    if (req.file) {
+      audioUrl = `/uploads/audio/${req.file.filename}`;
+    }
+
+    // Option 2: base64-encoded audio string
+    if (audio && !audioUrl) {
+      const uploadResponse = await cloudinary.uploader.upload(audio, {
+        resource_type: "video", // required for audio
+      });
+      audioUrl = uploadResponse.secure_url;
+    }
+
+    // Save message
     const newMessage = await Message.create({
       senderId,
       receiverId,
       text,
       image: imageUrl,
+      audio: audioUrl,
+      duration: duration || null,
     });
 
+    // Emit via socket
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
