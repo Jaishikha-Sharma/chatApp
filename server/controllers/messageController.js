@@ -102,6 +102,7 @@ export const markMessageAsSeen = async (req, res) => {
 };
 
 // Send message with role-based restriction
+// Send message with role-based restriction and forbidden content check
 export const sendMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
@@ -115,6 +116,27 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "You are not allowed to message this user without admin approval.",
+      });
+    }
+
+    // Forbidden patterns to block phone numbers, emails, social media handles, payment links etc.
+    const forbiddenPatterns = [
+      /\b\d{10,}\b/g, // simple phone numbers (10 or more digits)
+      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // emails
+      /https?:\/\/[^\s]+/gi, // URLs (including payment links)
+      /(@[a-zA-Z0-9_]+)/gi, // social media handles like @username
+    ];
+
+    const containsForbiddenInfo = (text) => {
+      if (!text) return false;
+      return forbiddenPatterns.some((pattern) => pattern.test(text));
+    };
+
+    if (containsForbiddenInfo(text)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Message contains forbidden information such as phone numbers, emails, social media handles, or payment links.",
       });
     }
 
@@ -139,9 +161,10 @@ export const sendMessage = async (req, res) => {
     res.json({ success: true, newMessage });
   } catch (error) {
     console.log(error.message);
-    return res.json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // Delete chat (soft delete)
 export const deleteChat = async (req, res) => {

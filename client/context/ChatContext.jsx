@@ -15,6 +15,20 @@ export const ChatProvider = ({ children }) => {
 
   const { socket, axios } = useContext(AuthContext);
 
+  // === Forbidden info detection ===
+  const forbiddenPatterns = [
+    /\b\d{10,15}\b/, // phone numbers (10 to 15 digit numbers)
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // email addresses
+    /@\w+/, // social media handles like @username
+    /(https?:\/\/[^\s]+)/, // URLs starting with http(s)
+    /pay(pay|tm|pal)?\.com/, // payment links (basic)
+  ];
+
+  const containsForbiddenInfo = (text) => {
+    if (!text) return false;
+    return forbiddenPatterns.some((pattern) => pattern.test(text));
+  };
+
   // Fetch all users and unseen message counts
   const getUsers = async () => {
     try {
@@ -90,9 +104,17 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Send one-on-one message to selectedUser
+  // Send one-on-one message to selectedUser with forbidden info check
   const sendMessage = async (messageData) => {
     if (!selectedUser) return;
+
+    if (containsForbiddenInfo(messageData.text)) {
+      toast.error(
+        "Your message contains sensitive information (phone, email, social handles, payment links) which is not allowed."
+      );
+      return;
+    }
+
     try {
       const { data } = await axios.post(
         `/api/messages/send/${selectedUser._id}`,
@@ -109,26 +131,34 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Send message in selected group; socket will handle updating messages
-  const sendGroupMessage = async (messageData) => {
-    if (!selectedGroup) return;
-    try {
-      const { data } = await axios.post(
-        `/api/groups/group/send/${selectedGroup._id}`,
-        messageData
-      );
-      if (!data.success) {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to send group message");
+ const sendGroupMessage = async (messageData) => {
+  if (!selectedGroup) return;
+
+  if (containsForbiddenInfo(messageData.text)) {
+    toast.error(
+      "Your message contains sensitive information (phone, email, social handles, payment links) which is not allowed."
+    );
+    return;
+  }
+
+  try {
+    const { data } = await axios.post(
+      `/api/groups/group/send/${selectedGroup._id}`,
+      messageData
+    );
+    if (!data.success) {
+      toast.error(data.message);
     }
-  };
+  } catch (error) {
+    toast.error(error.message || "Failed to send group message");
+  }
+};
+
 
   // Subscribe to incoming new messages via socket.io
   const subscribeToMessages = () => {
     if (!socket) return;
 
-    // 🔹 Listen for new messages
     socket.on("newMessage", async (newMessage) => {
       const isGroup = newMessage.isGroup;
       const isActive =
@@ -139,19 +169,16 @@ export const ChatProvider = ({ children }) => {
         newMessage.seen = true;
 
         setMessages((prev) => {
-          // Avoid duplicates
           if (prev.some((msg) => msg._id === newMessage._id)) return prev;
           return [...prev, newMessage];
         });
 
-        // Mark as seen on server
         try {
           await axios.put(`/api/messages/mark/${newMessage._id}`);
         } catch {
-          // optional: silent fail
+          // silent fail
         }
       } else {
-        // Increment unseen count
         const key = isGroup ? newMessage.groupId : newMessage.senderId;
         setUnseenMessages((prev) => ({
           ...prev,
@@ -159,35 +186,20 @@ export const ChatProvider = ({ children }) => {
         }));
       }
     });
-
-    // 🔹 Listen for edited messages
-    socket.on("messageEdited", (updatedMessage) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === updatedMessage._id ? updatedMessage : msg
-        )
-      );
-    });
   };
 
-  // Unsubscribe socket listener
   const unsubscribefromMessage = () => {
     if (!socket) return;
-
-    // Check if off is callable
     if (typeof socket.off === "function") {
       socket.off("newMessage");
-      socket.off("messageEdited");
     }
   };
 
-  // Manage socket subscription lifecycle
   useEffect(() => {
     subscribeToMessages();
     return () => unsubscribefromMessage();
   }, [socket, selectedUser, selectedGroup]);
 
-  // Delete entire chat with a user
   const deleteChat = async (userId) => {
     try {
       const { data } = await axios.delete(`/api/messages/delete/${userId}`);
@@ -202,7 +214,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Clear all messages in a one-on-one chat with userId
   const clearChat = async (userId) => {
     try {
       const { data } = await axios.delete(`/api/messages/clear/${userId}`);
@@ -217,7 +228,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Delete entire group chat by groupId
   const deleteGroupChat = async (groupId) => {
     try {
       const { data } = await axios.delete(`/api/groups/delete/${groupId}`);
@@ -232,7 +242,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Clear all messages in a group chat by groupId
   const clearGroupChat = async (groupId) => {
     try {
       const { data } = await axios.delete(
@@ -249,7 +258,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Toggle pin/unpin chat by chatId (user or group id)
   const togglePinChat = (chatId) => {
     setPinnedChats((prev) =>
       prev.includes(chatId)
@@ -258,18 +266,15 @@ export const ChatProvider = ({ children }) => {
     );
   };
 
-  // Load pinned chats from localStorage on mount
   useEffect(() => {
     const savedPins = localStorage.getItem("pinnedChats");
     if (savedPins) setPinnedChats(JSON.parse(savedPins));
   }, []);
 
-  // Save pinned chats to localStorage on change
   useEffect(() => {
     localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
   }, [pinnedChats]);
 
-  // Rename a group
   const renameGroup = async (groupId, newName) => {
     try {
       const { data } = await axios.put(`/api/groups/rename/${groupId}`, {
@@ -287,7 +292,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Add a member to group by userId
   const addMemberToGroup = async (groupId, userId) => {
     try {
       const { data } = await axios.put(`/api/groups/add/${groupId}`, {
@@ -295,14 +299,13 @@ export const ChatProvider = ({ children }) => {
       });
       if (data.success) {
         toast.success(data.message);
-        getGroupMessages(groupId); // Refresh group messages and info
+        getGroupMessages(groupId);
       }
     } catch (error) {
       toast.error(error.message || "Failed to add member");
     }
   };
 
-  // Remove a member from group by userId
   const removeMemberFromGroup = async (groupId, userId) => {
     try {
       const { data } = await axios.put(`/api/groups/remove/${groupId}`, {
@@ -318,28 +321,6 @@ export const ChatProvider = ({ children }) => {
       }
     } catch (error) {
       toast.error(error.message || "Failed to remove member");
-    }
-  };
-
-  const editMessage = async (messageId, newText) => {
-    try {
-      const { data } = await axios.put(`/api/messages/edit/${messageId}`, {
-        newText,
-      });
-
-      if (data.success) {
-        const updatedMessage = data.message;
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg._id === updatedMessage._id ? updatedMessage : msg
-          )
-        );
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to edit message");
     }
   };
 
@@ -366,7 +347,6 @@ export const ChatProvider = ({ children }) => {
         deleteChat,
         deleteGroupChat,
         clearGroupChat,
-        editMessage,
         clearChat,
         renameGroup,
         addMemberToGroup,

@@ -14,14 +14,11 @@ const ChatContainer = () => {
     sendMessage,
     getMessages,
     deleteChat,
-    editMessage,
   } = useContext(ChatContext);
 
   const { authUser, onlineUsers } = useContext(AuthContext);
 
   const [input, setInput] = useState("");
-  const [editMode, setEditMode] = useState(false);
-  const [editingMsgId, setEditingMsgId] = useState(null);
   const scrollEnd = useRef();
   const [showProfile, setShowProfile] = useState(false);
 
@@ -44,13 +41,7 @@ const ChatContainer = () => {
     e.preventDefault();
     if (input.trim() === "") return;
 
-    if (editMode) {
-      await editMessage(editingMsgId, input.trim());
-      setEditMode(false);
-      setEditingMsgId(null);
-    } else {
-      await sendMessage({ text: input.trim() });
-    }
+    await sendMessage({ text: input.trim() });
 
     setInput("");
   };
@@ -152,7 +143,6 @@ const ChatContainer = () => {
       <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 space-y-3">
         {messages.map((msg) => {
           const isSentByMe = msg.senderId === authUser._id;
-          const isEditingThis = editMode && editingMsgId === msg._id;
 
           return (
             <div
@@ -175,61 +165,7 @@ const ChatContainer = () => {
                     className="max-w-[250px] rounded-xl shadow"
                   />
                 ) : (
-                  <>
-                    {isEditingThis ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSendMessage(e);
-                            if (e.key === "Escape") {
-                              setEditMode(false);
-                              setEditingMsgId(null);
-                              setInput("");
-                            }
-                          }}
-                          autoFocus
-                          className="bg-transparent border-b border-white outline-none text-sm w-full"
-                        />
-                        <button
-                          className="text-xs hover:text-green-300"
-                          onClick={handleSendMessage}
-                          title="Save"
-                        >
-                          ✅
-                        </button>
-                        <button
-                          className="text-xs hover:text-red-300"
-                          onClick={() => {
-                            setEditMode(false);
-                            setEditingMsgId(null);
-                            setInput("");
-                          }}
-                          title="Cancel"
-                        >
-                          ❌
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span>{msg.text}</span>
-                        {isSentByMe && (
-                          <button
-                            className="text-xs hover:text-yellow-200"
-                            title="Edit Message"
-                            onClick={() => {
-                              setEditMode(true);
-                              setEditingMsgId(msg._id);
-                              setInput(msg.text);
-                            }}
-                          >
-                            ✏️
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
+                  <span>{msg.text}</span>
                 )}
               </div>
 
@@ -260,7 +196,7 @@ const ChatContainer = () => {
             value={input}
             onKeyDown={(e) => (e.key === "Enter" ? handleSendMessage(e) : null)}
             type="text"
-            placeholder={editMode ? "Edit message..." : "Send a message..."}
+            placeholder="Send a message..."
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
           <input

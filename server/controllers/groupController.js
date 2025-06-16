@@ -203,18 +203,65 @@ export const deleteGroup = async (req, res) => {
 };
 
 // Send message to group
+import { canMessage } from "../lib/roleUtils.js";
+import cloudinary from "../lib/cloudinary.js";
+
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
+    // Fetch group to check membership
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ success: false, message: "Group not found" });
+    }
+
+    // Check if sender is a member of the group
+    if (!group.members.some((member) => member.toString() === senderId.toString())) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a member of this group and cannot send messages.",
+      });
+    }
+
+    // Optional: You can add more role-based restrictions here
+    // For example, check canMessage permission per member roles in group
+
+    // Forbidden patterns to block phone numbers, emails, social media handles, payment links etc.
+    const forbiddenPatterns = [
+      /\b\d{10,}\b/g, // simple phone numbers (10 or more digits)
+      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // emails
+      /https?:\/\/[^\s]+/gi, // URLs (including payment links)
+      /(@[a-zA-Z0-9_]+)/gi, // social media handles like @username
+    ];
+
+    const containsForbiddenInfo = (text) => {
+      if (!text) return false;
+      return forbiddenPatterns.some((pattern) => pattern.test(text));
+    };
+
+    if (containsForbiddenInfo(text)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Message contains forbidden information such as phone numbers, emails, social media handles, or payment links.",
+      });
+    }
+
+    let imageUrl;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image);
+      imageUrl = uploadResponse.secure_url;
+    }
+
     const newMessage = await Message.create({
       senderId,
       groupId,
       isGroup: true,
       text,
-      image,
+      image: imageUrl,
     });
 
     // Emit newMessage event to all group members (or room)
@@ -231,6 +278,7 @@ export const sendGroupMessage = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // Get group messages (excluding cleared ones)
 export const getGroupMessages = async (req, res) => {
