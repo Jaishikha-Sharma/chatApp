@@ -49,11 +49,18 @@ export const getMyGroups = async (req, res) => {
   }
 };
 
-// Add a member to a group
+// Add a member to a group (Only Admin or Project Coordinator)
 export const addMemberToGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
     const { userId } = req.body;
+
+    if (!["Admin", "Project Coordinator"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to add members",
+      });
+    }
 
     if (
       !mongoose.Types.ObjectId.isValid(groupId) ||
@@ -91,12 +98,18 @@ export const addMemberToGroup = async (req, res) => {
   }
 };
 
-// Remove a member from a group
+// Remove a member from a group (Only Admin or Project Coordinator)
 export const removeMemberFromGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
     const { userId } = req.body;
-    const requesterId = req.user._id;
+
+    if (!["Admin", "Project Coordinator"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to remove members",
+      });
+    }
 
     if (
       !mongoose.Types.ObjectId.isValid(groupId) ||
@@ -112,12 +125,6 @@ export const removeMemberFromGroup = async (req, res) => {
         .json({ success: false, message: "Group not found" });
     }
 
-    if (group.createdBy.toString() !== requesterId.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
-    }
-
     group.members = group.members.filter(
       (memberId) => memberId.toString() !== userId
     );
@@ -131,16 +138,23 @@ export const removeMemberFromGroup = async (req, res) => {
   }
 };
 
-// Rename group
+// Rename group (Only Admin or Project Coordinator)
 export const renameGroup = async (req, res) => {
   try {
-    const { name } = req.body; // ✅ matches frontend payload
+    const { name } = req.body;
     const { groupId } = req.params;
 
     if (!name) {
       return res.status(400).json({
         success: false,
         message: "New group name is required",
+      });
+    }
+
+    if (!["Admin", "Project Coordinator"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Admin or Project Coordinator can rename groups",
       });
     }
 
@@ -168,11 +182,17 @@ export const renameGroup = async (req, res) => {
   }
 };
 
-// Delete group
+// Delete group (Only Admin)
 export const deleteGroup = async (req, res) => {
   try {
     const { groupId } = req.params;
-    const requesterId = req.user._id;
+
+    if (!["Admin"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Admin can delete groups",
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(groupId)) {
       return res
@@ -186,12 +206,6 @@ export const deleteGroup = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Group not found" });
 
-    if (group.createdBy.toString() !== requesterId.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
-    }
-
     await Group.findByIdAndDelete(groupId);
 
     res.json({ success: true, message: "Group deleted successfully" });
@@ -201,14 +215,13 @@ export const deleteGroup = async (req, res) => {
   }
 };
 
-// Send message to group
+// The rest of the message-related logic remains unchanged:
 export const sendGroupMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
-    // Fetch group to check membership
     const group = await Group.findById(groupId);
     if (!group) {
       return res
@@ -216,7 +229,6 @@ export const sendGroupMessage = async (req, res) => {
         .json({ success: false, message: "Group not found" });
     }
 
-    // Check if sender is a member of the group
     if (
       !group.members.some((member) => member.toString() === senderId.toString())
     ) {
@@ -226,26 +238,24 @@ export const sendGroupMessage = async (req, res) => {
       });
     }
 
-    // Extended forbidden patterns with circumvention tricks
     const containsForbiddenInfo = (text) => {
       if (!text) return false;
 
       const forbiddenPatterns = [
-        /\b\d{10,}\b/g, // 10+ digit phone numbers
-        /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+)/gi, // emails
-        /https?:\/\/[^\s]+/gi, // URLs
-        /(@[a-zA-Z0-9_]+)/gi, // @handles
-        /\b(?:at\s+)?gmail(?:\s+dot\s+)?com\b/gi, // "at gmail dot com"
+        /\b\d{10,}\b/g,
+        /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+)/gi,
+        /https?:\/\/[^\s]+/gi,
+        /(@[a-zA-Z0-9_]+)/gi,
+        /\b(?:at\s+)?gmail(?:\s+dot\s+)?com\b/gi,
         /\b(?:at\s+)?yahoo(?:\s+dot\s+)?com\b/gi,
-        /\b(?:[nN]ine|[eE]ight|[sS]even|[sS]ix|[fF]ive|[fF]our|[tT]hree|[tT]wo|[oO]ne|[zZ]ero)\b/gi, // spelled numbers
-        /\b(?:dotcom|dotnet|dotorg)\b/gi, // disguised domains
-        /\b(?:upi|paytm|phonepe|gpay|google pay|amazon pay|payment|account number|bank)\b/gi, // payment-related
+        /\b(?:[nN]ine|[eE]ight|[sS]even|[sS]ix|[fF]ive|[fF]our|[tT]hree|[tT]wo|[oO]ne|[zZ]ero)\b/gi,
+        /\b(?:dotcom|dotnet|dotorg)\b/gi,
+        /\b(?:upi|paytm|phonepe|gpay|google pay|amazon pay|payment|account number|bank)\b/gi,
       ];
 
       return forbiddenPatterns.some((pattern) => pattern.test(text));
     };
 
-    // Block if message contains forbidden content
     if (containsForbiddenInfo(text)) {
       return res.status(400).json({
         success: false,
@@ -254,7 +264,6 @@ export const sendGroupMessage = async (req, res) => {
       });
     }
 
-    // Optional image upload
     let imageUrl;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image);
@@ -269,7 +278,6 @@ export const sendGroupMessage = async (req, res) => {
       image: imageUrl,
     });
 
-    // Emit new group message via Socket.IO
     io.to(groupId.toString()).emit("newMessage", {
       ...newMessage._doc,
       senderId: req.user,
@@ -284,7 +292,7 @@ export const sendGroupMessage = async (req, res) => {
   }
 };
 
-// Get group messages (excluding cleared ones)
+// Get group messages
 export const getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;

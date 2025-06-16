@@ -17,11 +17,11 @@ export const ChatProvider = ({ children }) => {
 
   // === Forbidden content detection ===
   const forbiddenPatterns = [
-    /\b\d{10,15}\b/, // 10-15 digit numbers (phones)
-    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // email addresses
-    /@\w+/, // @socialHandles
-    /(https?:\/\/[^\s]+)/, // URLs
-    /(paytm|gpay|phonepe|paypal|upi|paynow|pay\.com)/i, // payment services
+    /\b\d{10,15}\b/,
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
+    /@\w+/,
+    /(https?:\/\/[^\s]+)/,
+    /(paytm|gpay|phonepe|paypal|upi|paynow|pay\.com)/i,
   ];
 
   const containsForbiddenInfo = (text) => {
