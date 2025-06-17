@@ -9,8 +9,9 @@ import {
   deleteGroup,
   sendGroupMessage,
   getGroupMessages,
-  clearGroupMessages
+  clearGroupMessages,
 } from "../controllers/groupController.js";
+import { uploadMedia } from "../middleware/upload.js"; // ✅ IMPORT this
 
 const groupRouter = express.Router();
 
@@ -32,9 +33,21 @@ groupRouter.put("/rename/:groupId", protectRoute, renameGroup);
 // DELETE delete a group
 groupRouter.delete("/delete/:groupId", protectRoute, deleteGroup);
 
-// Fix: use groupRouter here, not messageRouter
-groupRouter.post("/group/send/:groupId", protectRoute, sendGroupMessage);
+// ✅ Handle group message sending (text + image/audio)
+groupRouter.post(
+  "/group/send/:groupId",
+  protectRoute,
+  uploadMedia.fields([
+    { name: "audio", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+  ]),
+  sendGroupMessage
+);
+
+// GET group messages
 groupRouter.get("/group/:groupId", protectRoute, getGroupMessages);
+
+// DELETE group messages
 groupRouter.delete("/clear-messages/:groupId", protectRoute, clearGroupMessages);
 
 export default groupRouter;

@@ -120,19 +120,19 @@ const GroupChatContainer = () => {
   };
 
   const handleSendImage = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file!");
-      return;
-    }
+  const file = e.target.files[0];
+  if (!file || !file.type.startsWith("image/")) {
+    toast.error("Please select a valid image file!");
+    return;
+  }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      await sendGroupMessage({ image: reader.result });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+  try {
+    await sendGroupMessage({ image: file });
+    e.target.value = ""; // reset file input so same file can be selected again if needed
+  } catch (error) {
+    toast.error("Failed to send image");
+  }
+};
 
   const handleDeleteChat = async () => {
     if (

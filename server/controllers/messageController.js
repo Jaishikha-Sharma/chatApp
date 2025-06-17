@@ -104,7 +104,7 @@ export const markMessageAsSeen = async (req, res) => {
 // Send message with role-based restriction
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, duration, audio } = req.body;
+    const { text, duration } = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
 
@@ -119,19 +119,17 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Block sensitive info
+    // ❌ Block forbidden content
     const forbiddenPatterns = [
       /\b\d{10,}\b/g, // phone numbers
       /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // email
       /https?:\/\/[^\s]+/gi, // URLs
       /(@[a-zA-Z0-9_]+)/gi, // social handles
     ];
-
     const containsForbiddenInfo = (text) => {
       if (!text) return false;
       return forbiddenPatterns.some((pattern) => pattern.test(text));
     };
-
     if (containsForbiddenInfo(text)) {
       return res.status(400).json({
         success: false,
@@ -140,30 +138,25 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Upload image if present
+    // ✅ Upload image (from multer)
     let imageUrl;
-    if (image) {
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
+    if (req.files?.image?.[0]) {
+      const imagePath = req.files.image[0].path;
+      const uploadRes = await cloudinary.uploader.upload(imagePath);
+      imageUrl = uploadRes.secure_url;
     }
 
-    // Handle audio
+    // ✅ Upload audio (from multer)
     let audioUrl;
-
-    // Option 1: multer-based audio file
-    if (req.file) {
-      audioUrl = `/uploads/audio/${req.file.filename}`;
-    }
-
-    // Option 2: base64-encoded audio string
-    if (audio && !audioUrl) {
-      const uploadResponse = await cloudinary.uploader.upload(audio, {
-        resource_type: "video", // required for audio
+    if (req.files?.audio?.[0]) {
+      const audioPath = req.files.audio[0].path;
+      const uploadRes = await cloudinary.uploader.upload(audioPath, {
+        resource_type: "video",
       });
-      audioUrl = uploadResponse.secure_url;
+      audioUrl = uploadRes.secure_url;
     }
 
-    // Save message
+    // ✅ Create and save message
     const newMessage = await Message.create({
       senderId,
       receiverId,
@@ -173,7 +166,7 @@ export const sendMessage = async (req, res) => {
       duration: duration || null,
     });
 
-    // Emit via socket
+    // 🔔 Emit via socket
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
@@ -181,8 +174,8 @@ export const sendMessage = async (req, res) => {
 
     res.json({ success: true, newMessage });
   } catch (error) {
-    console.log(error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    console.log("❌ sendMessage error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

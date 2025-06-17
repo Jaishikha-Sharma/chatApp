@@ -24,7 +24,7 @@ const VoiceRecorder = ({ onRecordingComplete }) => {
         const arrayBuffer = await blob.arrayBuffer();
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        const duration = audioBuffer.duration; // in seconds
+        const duration = audioBuffer.duration;
 
         const audioURL = URL.createObjectURL(blob);
         onRecordingComplete(file, audioURL, duration);
@@ -47,11 +47,15 @@ const VoiceRecorder = ({ onRecordingComplete }) => {
   };
 
   return (
-    <div>
+    <div className="bg-white border p-4 rounded-lg shadow">
       {!isRecording ? (
-        <button onClick={startRecording}>🎙 Start Recording</button>
+        <button onClick={startRecording} className="text-purple-600 font-semibold">
+          🎙 Start Recording
+        </button>
       ) : (
-        <button onClick={stopRecording}>⏹ Stop Recording</button>
+        <button onClick={stopRecording} className="text-red-500 font-semibold">
+          ⏹ Stop Recording
+        </button>
       )}
     </div>
   );

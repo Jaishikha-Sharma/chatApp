@@ -22,7 +22,6 @@ const ChatContainer = () => {
   const [input, setInput] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [showRecorder, setShowRecorder] = useState(false);
-
   const scrollEnd = useRef();
 
   const getUserStatus = (user) => {
@@ -43,33 +42,33 @@ const ChatContainer = () => {
     setInput("");
   };
 
-  const handleSendImage = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file!");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      await sendMessage({ image: reader.result });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
+ const handleSendImage = async (e) => {
+  const file = e.target.files[0];
+  if (!file || !file.type.startsWith("image/")) {
+    toast.error("Please select a valid image file!");
+    return;
+  }
 
-  const handleRecordingComplete = async (file, audioURL, duration) => {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        await sendMessage({ audio: reader.result, duration });
-        toast.success("Voice note sent!");
-      } catch (err) {
-        toast.error("Failed to send voice note");
-      }
-    };
-    reader.readAsDataURL(file);
-    setShowRecorder(false);
-  };
+  try {
+    await sendMessage({ image: file }); // ✅ Pass as object, not FormData
+  } catch (err) {
+    toast.error("Failed to send image!");
+  }
+
+  e.target.value = "";
+};
+
+
+ const handleRecordingComplete = async (file, audioURL, duration) => {
+  try {
+    await sendMessage({ audio: file }); // ✅ Only audio for now
+    toast.success("Voice note sent!");
+  } catch (err) {
+    toast.error("Failed to send voice note");
+  }
+  setShowRecorder(false);
+};
+
 
   const handleDeleteChat = async () => {
     const confirm = window.confirm("Are you sure you want to delete this chat?");
@@ -116,7 +115,6 @@ const ChatContainer = () => {
           <Trash2 size={18} onClick={handleDeleteChat} className="cursor-pointer hover:text-red-500" title="Delete Chat" />
           <X size={20} onClick={() => setSelectedUser(null)} className="cursor-pointer hover:text-red-500" title="Close Chat" />
         </div>
-
         {showProfile && (
           <div className="absolute top-14 left-4 bg-white text-black rounded-lg p-4 shadow-md z-50 w-60">
             <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">User Info</h3>
@@ -202,13 +200,10 @@ const ChatContainer = () => {
             placeholder="Send a message..."
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
-          {/* Image Upload */}
           <input type="file" id="image" onChange={handleSendImage} accept="image/*" hidden />
           <label htmlFor="image">
             <Image className="w-5 h-5 mr-3 cursor-pointer text-black" />
           </label>
-
-          {/* Mic Icon */}
           <Mic className="w-5 h-5 mr-2 cursor-pointer text-black" onClick={() => setShowRecorder(!showRecorder)} />
         </div>
 

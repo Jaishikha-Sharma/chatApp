@@ -218,20 +218,16 @@ export const deleteGroup = async (req, res) => {
 // The rest of the message-related logic remains unchanged:
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, duration } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Group not found" });
+      return res.status(404).json({ success: false, message: "Group not found" });
     }
 
-    if (
-      !group.members.some((member) => member.toString() === senderId.toString())
-    ) {
+    if (!group.members.some((member) => member.toString() === senderId.toString())) {
       return res.status(403).json({
         success: false,
         message: "You are not a member of this group and cannot send messages.",
@@ -264,10 +260,19 @@ export const sendGroupMessage = async (req, res) => {
       });
     }
 
-    let imageUrl;
-    if (image) {
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
+    // ✅ Upload files if present
+    let imageUrl, audioUrl;
+
+    if (req.files?.image?.[0]) {
+      const uploadRes = await cloudinary.uploader.upload(req.files.image[0].path);
+      imageUrl = uploadRes.secure_url;
+    }
+
+    if (req.files?.audio?.[0]) {
+      const uploadRes = await cloudinary.uploader.upload(req.files.audio[0].path, {
+        resource_type: "video",
+      });
+      audioUrl = uploadRes.secure_url;
     }
 
     const newMessage = await Message.create({
@@ -276,16 +281,21 @@ export const sendGroupMessage = async (req, res) => {
       isGroup: true,
       text,
       image: imageUrl,
+      audio: audioUrl,
+      duration: duration || null,
     });
 
+    // ✅ Populate full sender data and emit with full info
+    const fullMessage = await Message.findById(newMessage._id)
+      .populate("senderId", "fullName profilePic");
+
     io.to(groupId.toString()).emit("newMessage", {
-      ...newMessage._doc,
-      senderId: req.user,
+      ...fullMessage._doc,
       isGroup: true,
       groupId,
     });
 
-    res.status(201).json({ success: true, newMessage });
+    res.status(201).json({ success: true, message: fullMessage });
   } catch (error) {
     console.error("Send Group Message Error:", error.message);
     res.status(500).json({ success: false, message: error.message });
