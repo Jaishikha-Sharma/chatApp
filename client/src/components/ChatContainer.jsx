@@ -3,7 +3,7 @@ import { formatMessageTime } from "../lib/utils.js";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
-import { Trash2, X, Image } from "lucide-react";
+import { Trash2, X, Image, Mic } from "lucide-react";
 import assets from "../assets/assets";
 import VoiceRecorder from "../pages/VoiceRecorder.jsx";
 
@@ -20,8 +20,10 @@ const ChatContainer = () => {
   const { authUser, onlineUsers } = useContext(AuthContext);
 
   const [input, setInput] = useState("");
-  const scrollEnd = useRef();
   const [showProfile, setShowProfile] = useState(false);
+  const [showRecorder, setShowRecorder] = useState(false);
+
+  const scrollEnd = useRef();
 
   const getUserStatus = (user) => {
     if (onlineUsers.includes(user._id)) return "Active";
@@ -55,7 +57,6 @@ const ChatContainer = () => {
     e.target.value = "";
   };
 
-  // ✅ CORRECTED: Convert audio file to base64
   const handleRecordingComplete = async (file, audioURL, duration) => {
     const reader = new FileReader();
     reader.onloadend = async () => {
@@ -66,7 +67,8 @@ const ChatContainer = () => {
         toast.error("Failed to send voice note");
       }
     };
-    reader.readAsDataURL(file); // base64 encode the audio
+    reader.readAsDataURL(file);
+    setShowRecorder(false);
   };
 
   const handleDeleteChat = async () => {
@@ -200,15 +202,14 @@ const ChatContainer = () => {
             placeholder="Send a message..."
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
+          {/* Image Upload */}
           <input type="file" id="image" onChange={handleSendImage} accept="image/*" hidden />
           <label htmlFor="image">
-            <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
+            <Image className="w-5 h-5 mr-3 cursor-pointer text-black" />
           </label>
-        </div>
 
-        {/* Voice Recorder */}
-        <div className="absolute bottom-16 left-0 right-0 flex justify-center mb-2">
-          <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
+          {/* Mic Icon */}
+          <Mic className="w-5 h-5 mr-2 cursor-pointer text-black" onClick={() => setShowRecorder(!showRecorder)} />
         </div>
 
         <img
@@ -218,6 +219,13 @@ const ChatContainer = () => {
           onClick={handleSendMessage}
         />
       </div>
+
+      {/* Voice Recorder (Popup) */}
+      {showRecorder && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50">
+          <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
+        </div>
+      )}
     </div>
   ) : (
     <div className="flex flex-col items-center justify-center gap-2 text-gray-500 bg-white max-md:hidden">
