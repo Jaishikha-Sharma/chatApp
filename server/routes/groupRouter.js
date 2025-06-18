@@ -11,7 +11,7 @@ import {
   getGroupMessages,
   clearGroupMessages,
 } from "../controllers/groupController.js";
-import { uploadMedia } from "../middleware/upload.js"; // ✅ IMPORT this
+import { uploadMedia } from "../middleware/upload.js"; 
 
 const groupRouter = express.Router();
 
@@ -40,6 +40,7 @@ groupRouter.post(
   uploadMedia.fields([
     { name: "audio", maxCount: 1 },
     { name: "image", maxCount: 1 },
+      { name: "document", maxCount: 1 },
   ]),
   sendGroupMessage
 );

@@ -2,6 +2,9 @@ import express from "express";
 import "dotenv/config";
 import cors from "cors";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import { connectDB } from "./lib/db.js";
 import userRouter from "./routes/userRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
@@ -11,6 +14,10 @@ import User from "./models/User.js";
 
 const app = express();
 const server = http.createServer(app);
+
+// required to get __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // initialize socket.io server
 export const io = new Server(server, {
@@ -74,6 +81,9 @@ io.on("connection", (socket) => {
 app.use(express.json({ limit: "4mb" }));
 app.use(cors());
 
+// ✅ serve the /uploads folder publicly
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // routes
 app.use("/api/status", (req, res) => res.send("Server is live!"));
 app.use("/api/auth", userRouter);
@@ -83,5 +93,6 @@ app.use("/api/groups", groupRouter);
 // connect to mongodb
 await connectDB();
 
+// start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log("Server is running on PORT : " + PORT));

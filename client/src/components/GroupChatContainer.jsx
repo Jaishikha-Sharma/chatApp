@@ -4,7 +4,7 @@ import { formatMessageTime } from "../lib/utils.js";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
-import { X, MoreVertical, Image } from "lucide-react";
+import { X, MoreVertical, Image, Paperclip } from "lucide-react";
 
 const GroupChatContainer = () => {
   const {
@@ -120,19 +120,19 @@ const GroupChatContainer = () => {
   };
 
   const handleSendImage = async (e) => {
-  const file = e.target.files[0];
-  if (!file || !file.type.startsWith("image/")) {
-    toast.error("Please select a valid image file!");
-    return;
-  }
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file!");
+      return;
+    }
 
-  try {
-    await sendGroupMessage({ image: file });
-    e.target.value = ""; // reset file input so same file can be selected again if needed
-  } catch (error) {
-    toast.error("Failed to send image");
-  }
-};
+    try {
+      await sendGroupMessage({ image: file });
+      e.target.value = ""; // reset file input so same file can be selected again if needed
+    } catch (error) {
+      toast.error("Failed to send image");
+    }
+  };
 
   const handleDeleteChat = async () => {
     if (
@@ -141,6 +141,29 @@ const GroupChatContainer = () => {
     ) {
       await deleteGroupChat(selectedGroup._id);
       setSelectedGroup(null);
+    }
+  };
+  const handleSendDocument = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Unsupported file type.");
+      return;
+    }
+
+    try {
+      await sendGroupMessage({ document: file, documentName: file.name });
+      e.target.value = ""; // Reset file input
+    } catch (error) {
+      toast.error("Failed to send document.");
     }
   };
 
@@ -348,6 +371,15 @@ const GroupChatContainer = () => {
                     alt="chat image"
                     className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden"
                   />
+                ) : msg.document ? (
+                  <a
+                    href={msg.document}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 underline max-w-[250px] break-words block bg-gray-100 p-3 rounded-lg"
+                  >
+                    {msg.documentName || "View Document"}
+                  </a>
                 ) : (
                   <p
                     className={`p-3 max-w-[250px] text-sm font-medium rounded-2xl break-words ${
@@ -359,6 +391,7 @@ const GroupChatContainer = () => {
                     {msg.text}
                   </p>
                 )}
+
                 <p
                   className={`text-[11px] mt-1 text-gray-400 ${
                     isOwn ? "text-right" : "text-left"
@@ -421,6 +454,17 @@ const GroupChatContainer = () => {
           accept="image/*"
           hidden
         />
+        <input
+          type="file"
+          id="group-doc"
+          accept=".pdf,.doc,.docx,.txt"
+          onChange={handleSendDocument}
+          hidden
+        />
+        <label htmlFor="group-doc" className="cursor-pointer">
+          <Paperclip className="w-5 h-5 mr-2 cursor-pointer text-black" />
+        </label>
+
         <label htmlFor="group-image" className="mr-2 cursor-pointer">
           <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
         </label>

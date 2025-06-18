@@ -128,7 +128,7 @@ const sendMessage = async ({ text, audio, image }) => {
   }
 };
 
-const sendGroupMessage = async ({ text, audio, image }) => {
+const sendGroupMessage = async ({ text, audio, image, document }) => {
   if (!selectedGroup) return;
   if (text && containsForbiddenInfo(text)) {
     toast.error("Group message contains restricted info.");
@@ -140,8 +140,11 @@ const sendGroupMessage = async ({ text, audio, image }) => {
     if (text) formData.append("text", text);
     if (audio) formData.append("audio", audio);
     if (image) formData.append("image", image);
+    if (document) {
+      formData.append("document", document);
+      formData.append("documentName", document.name); // 👈 important for UI
+    }
 
-    // ❌ DON'T manually set Content-Type
     const { data } = await axios.post(
       `/api/groups/group/send/${selectedGroup._id}`,
       formData
@@ -151,7 +154,7 @@ const sendGroupMessage = async ({ text, audio, image }) => {
       toast.error(data.message);
     }
   } catch (error) {
-    toast.error(error?.message || "Failed to send group message");
+    toast.error(error?.response?.data?.message || "Failed to send group message");
   }
 };
 

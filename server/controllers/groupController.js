@@ -215,19 +215,22 @@ export const deleteGroup = async (req, res) => {
   }
 };
 
-// The rest of the message-related logic remains unchanged:
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, duration } = req.body;
+    const { text, duration, documentName } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ success: false, message: "Group not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Group not found" });
     }
 
-    if (!group.members.some((member) => member.toString() === senderId.toString())) {
+    if (
+      !group.members.some((member) => member.toString() === senderId.toString())
+    ) {
       return res.status(403).json({
         success: false,
         message: "You are not a member of this group and cannot send messages.",
@@ -236,7 +239,6 @@ export const sendGroupMessage = async (req, res) => {
 
     const containsForbiddenInfo = (text) => {
       if (!text) return false;
-
       const forbiddenPatterns = [
         /\b\d{10,}\b/g,
         /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+)/gi,
@@ -248,7 +250,6 @@ export const sendGroupMessage = async (req, res) => {
         /\b(?:dotcom|dotnet|dotorg)\b/gi,
         /\b(?:upi|paytm|phonepe|gpay|google pay|amazon pay|payment|account number|bank)\b/gi,
       ];
-
       return forbiddenPatterns.some((pattern) => pattern.test(text));
     };
 
@@ -261,18 +262,34 @@ export const sendGroupMessage = async (req, res) => {
     }
 
     // ✅ Upload files if present
-    let imageUrl, audioUrl;
+    let imageUrl, audioUrl, documentUrl;
 
     if (req.files?.image?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(req.files.image[0].path);
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.image[0].path
+      );
       imageUrl = uploadRes.secure_url;
     }
 
     if (req.files?.audio?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(req.files.audio[0].path, {
-        resource_type: "video",
-      });
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.audio[0].path,
+        {
+          resource_type: "video",
+        }
+      );
       audioUrl = uploadRes.secure_url;
+    }
+
+    if (req.files?.document?.[0]) {
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.document[0].path,
+        {
+          resource_type: "auto",
+          type: "upload", 
+        }
+      );
+      documentUrl = uploadRes.secure_url;
     }
 
     const newMessage = await Message.create({
@@ -283,11 +300,14 @@ export const sendGroupMessage = async (req, res) => {
       image: imageUrl,
       audio: audioUrl,
       duration: duration || null,
+      document: documentUrl,
+      documentName: documentName || null, // ✅ important for UI display
     });
 
-    // ✅ Populate full sender data and emit with full info
-    const fullMessage = await Message.findById(newMessage._id)
-      .populate("senderId", "fullName profilePic");
+    const fullMessage = await Message.findById(newMessage._id).populate(
+      "senderId",
+      "fullName profilePic"
+    );
 
     io.to(groupId.toString()).emit("newMessage", {
       ...fullMessage._doc,
