@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react"; // Optional: You can use any icon here
+import { ArrowLeft } from "lucide-react";
 
 const ApproveChat = () => {
   const { authUser } = useContext(AuthContext);
@@ -50,18 +50,18 @@ const ApproveChat = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-purple-300 flex justify-center items-center px-4">
-      <div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-gray-100 flex justify-center items-center px-4">
+      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
         {/* Back button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-purple-600 hover:text-purple-800 mb-4"
+          className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back
         </button>
 
-        <h2 className="text-2xl font-bold text-center text-purple-800 mb-6">
+        <h2 className="text-2xl font-bold text-center text-blue-800 mb-6">
           Approve Chat Between Users
         </h2>
 
@@ -69,7 +69,7 @@ const ApproveChat = () => {
           <div>
             <label className="block mb-1 font-medium text-gray-700">Select User 1</label>
             <select
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-800"
+              className="w-full p-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
               value={user1}
               onChange={(e) => setUser1(e.target.value)}
             >
@@ -85,7 +85,7 @@ const ApproveChat = () => {
           <div>
             <label className="block mb-1 font-medium text-gray-700">Select User 2</label>
             <select
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-800"
+              className="w-full p-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
               value={user2}
               onChange={(e) => setUser2(e.target.value)}
             >
@@ -99,7 +99,7 @@ const ApproveChat = () => {
           </div>
 
           <button
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold transition duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition duration-200"
             onClick={handleApprove}
           >
             Approve Chat

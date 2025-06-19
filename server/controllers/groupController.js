@@ -217,7 +217,7 @@ export const deleteGroup = async (req, res) => {
 
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, duration, documentName } = req.body;
+    const { text, duration, documentName, replyTo } = req.body;
     const { groupId } = req.params;
     const senderId = req.user._id;
 
@@ -274,9 +274,7 @@ export const sendGroupMessage = async (req, res) => {
     if (req.files?.audio?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.audio[0].path,
-        {
-          resource_type: "video",
-        }
+        { resource_type: "video" }
       );
       audioUrl = uploadRes.secure_url;
     }
@@ -284,12 +282,20 @@ export const sendGroupMessage = async (req, res) => {
     if (req.files?.document?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.document[0].path,
-        {
-          resource_type: "auto",
-          type: "upload", 
-        }
+        { resource_type: "auto", type: "upload" }
       );
       documentUrl = uploadRes.secure_url;
+    }
+
+    // ✅ Handle reply message
+    let replyMessage = null;
+    if (replyTo) {
+      replyMessage = await Message.findById(replyTo);
+      if (!replyMessage) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid replyTo message ID." });
+      }
     }
 
     const newMessage = await Message.create({
@@ -301,13 +307,20 @@ export const sendGroupMessage = async (req, res) => {
       audio: audioUrl,
       duration: duration || null,
       document: documentUrl,
-      documentName: documentName || null, // ✅ important for UI display
+      documentName: documentName || null,
+      replyTo: replyTo || null,
     });
 
-    const fullMessage = await Message.findById(newMessage._id).populate(
-      "senderId",
-      "fullName profilePic"
-    );
+    const fullMessage = await Message.findById(newMessage._id)
+      .populate("senderId", "fullName profilePic")
+      .populate({
+        path: "replyTo",
+        select: "text image audio duration senderId",
+        populate: {
+          path: "senderId",
+          select: "fullName",
+        },
+      });
 
     io.to(groupId.toString()).emit("newMessage", {
       ...fullMessage._doc,
@@ -322,6 +335,7 @@ export const sendGroupMessage = async (req, res) => {
   }
 };
 
+
 // Get group messages
 export const getGroupMessages = async (req, res) => {
   try {
@@ -332,6 +346,14 @@ export const getGroupMessages = async (req, res) => {
       clearedBy: { $ne: req.user._id },
     })
       .populate("senderId", "fullName profilePic")
+      .populate({
+        path: "replyTo",
+        select: "text image audio duration senderId",
+        populate: {
+          path: "senderId",
+          select: "fullName",
+        },
+      })
       .sort({ createdAt: 1 });
 
     res.status(200).json({ success: true, messages });
@@ -340,6 +362,7 @@ export const getGroupMessages = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 // Clear group messages for current user
 export const clearGroupMessages = async (req, res) => {

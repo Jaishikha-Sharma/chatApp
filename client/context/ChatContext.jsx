@@ -146,15 +146,19 @@ export const ChatProvider = ({ children }) => {
       if (image) formData.append("image", image);
       if (document) {
         formData.append("document", document);
-        formData.append("documentName", document.name); // 👈 important for UI
+        formData.append("documentName", document.name);
       }
+      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id); // ✅ Add this line
 
       const { data } = await axios.post(
         `/api/groups/group/send/${selectedGroup._id}`,
         formData
       );
 
-      if (!data.success) {
+      if (data.success) {
+        setMessages((prev) => [...prev, data.message]); // ✅ update chat immediately
+        setReplyToMessage(null); // ✅ clear reply after sending
+      } else {
         toast.error(data.message);
       }
     } catch (error) {

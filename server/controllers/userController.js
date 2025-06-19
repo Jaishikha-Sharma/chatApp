@@ -199,3 +199,44 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+export const createUserByAdmin = async (req, res) => {
+  try {
+    const admin = req.user; // populated by auth middleware
+
+    if (admin.role !== "Admin") {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
+    const { fullName, email, password, role, bio } = req.body;
+
+    if (!fullName || !email || !password || !role || !bio) {
+      return res.status(400).json({ success: false, message: "Missing fields" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: "Email already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      fullName,
+      email,
+      password: hashedPassword,
+      role,
+      bio,
+    });
+
+    const { password: _p, ...userWithoutPassword } = newUser._doc;
+
+    res.status(201).json({
+      success: true,
+      user: userWithoutPassword,
+      message: "User created successfully by Admin",
+    });
+  } catch (error) {
+    console.error("Admin Create User Error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

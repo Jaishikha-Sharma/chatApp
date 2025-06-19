@@ -1,4 +1,3 @@
-
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ChatContext } from "../../context/ChatContext.jsx";
@@ -6,6 +5,7 @@ import { AuthContext } from "../../context/AuthContext.jsx";
 import CreateGroupModal from "../components/CreateGroupModal.jsx";
 import assets from "../assets/assets";
 import { LogOut, Pencil, Pin, ChevronDown, ChevronRight } from "lucide-react";
+import CreateUserModal from "../pages/CreateUserModal.jsx";
 
 const Sidebar = () => {
   const {
@@ -28,6 +28,8 @@ const Sidebar = () => {
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showGroups, setShowGroups] = useState(true);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -232,12 +234,21 @@ const Sidebar = () => {
         </div>
 
         {authUser?.role === "Admin" && (
-          <Link
-            to="/approve-chat"
-            className="block text-center text-sm font-semibold bg-purple-200 hover:bg-purple-300 text-purple-800 py-2 px-4 rounded-full transition-all duration-200 mb-4"
-          >
-            🛡 Approve Chats
-          </Link>
+          <>
+            <Link
+              to="/approve-chat"
+              className="block text-center text-sm font-semibold bg-purple-200 hover:bg-purple-300 text-purple-800 py-2 px-4 rounded-full transition-all duration-200 mb-2"
+            >
+              Approve Chats
+            </Link>
+
+            <button
+              onClick={() => setShowCreateUserModal(true)}
+              className="block w-full text-sm font-semibold bg-green-200 hover:bg-green-300 text-green-800 py-2 px-4 rounded-full transition-all duration-200 mb-4"
+            >
+              ➕ Create User
+            </button>
+          </>
         )}
 
         {/* Search Input */}
@@ -311,6 +322,9 @@ const Sidebar = () => {
 
       {showCreateGroupModal && (
         <CreateGroupModal onClose={() => setShowCreateGroupModal(false)} />
+      )}
+      {showCreateUserModal && (
+        <CreateUserModal onClose={() => setShowCreateUserModal(false)} />
       )}
     </div>
   );
