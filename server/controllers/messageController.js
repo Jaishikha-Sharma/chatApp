@@ -13,12 +13,17 @@ export const getUsersForSidebar = async (req, res) => {
     let filteredUsers;
 
     if (userRole === "Admin" || userRole === "Project Coordinator") {
-      filteredUsers = await User.find({ _id: { $ne: userId } }).select("-password");
+      filteredUsers = await User.find({ _id: { $ne: userId } }).select(
+        "-password"
+      );
     } else {
       const userIds = new Set();
 
       if (userRole === "Employee") {
-        const employeeUsers = await User.find({ _id: { $ne: userId }, role: "Employee" });
+        const employeeUsers = await User.find({
+          _id: { $ne: userId },
+          role: "Employee",
+        });
         employeeUsers.forEach((user) => userIds.add(user._id.toString()));
       }
 
@@ -27,10 +32,18 @@ export const getUsersForSidebar = async (req, res) => {
       });
 
       messages.forEach((msg) => {
-        if (msg.senderId && msg.senderId.toString && msg.senderId.toString() !== userId.toString()) {
+        if (
+          msg.senderId &&
+          msg.senderId.toString &&
+          msg.senderId.toString() !== userId.toString()
+        ) {
           userIds.add(msg.senderId.toString());
         }
-        if (msg.receiverId && msg.receiverId.toString && msg.receiverId.toString() !== userId.toString()) {
+        if (
+          msg.receiverId &&
+          msg.receiverId.toString &&
+          msg.receiverId.toString() !== userId.toString()
+        ) {
           userIds.add(msg.receiverId.toString());
         }
       });
@@ -75,7 +88,16 @@ export const getMessages = async (req, res) => {
         { senderId: selectedUserId, receiverId: myId },
       ],
       deletedFor: { $ne: myId },
-    }).sort({ createdAt: 1 });
+    })
+      .sort({ createdAt: 1 })
+      .populate({
+        path: "replyTo",
+        select: "text image audio duration senderId",
+        populate: {
+          path: "senderId",
+          select: "fullName",
+        },
+      });
 
     await Message.updateMany(
       { senderId: selectedUserId, receiverId: myId, seen: false },
@@ -104,27 +126,26 @@ export const markMessageAsSeen = async (req, res) => {
 // Send message with role-based restriction
 export const sendMessage = async (req, res) => {
   try {
-    const { text, duration } = req.body;
+    const { text, duration, replyTo } = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
 
     const sender = await User.findById(senderId);
     const receiver = await User.findById(receiverId);
 
-    // Role restriction
     if (!canMessage(sender, receiver)) {
       return res.status(403).json({
         success: false,
-        message: "You are not allowed to message this user without admin approval.",
+        message:
+          "You are not allowed to message this user without admin approval.",
       });
     }
 
-    // ❌ Block forbidden content
     const forbiddenPatterns = [
-      /\b\d{10,}\b/g, // phone numbers
-      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi, // email
-      /https?:\/\/[^\s]+/gi, // URLs
-      /(@[a-zA-Z0-9_]+)/gi, // social handles
+      /\b\d{10,}\b/g,
+      /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi,
+      /https?:\/\/[^\s]+/gi,
+      /(@[a-zA-Z0-9_]+)/gi,
     ];
     const containsForbiddenInfo = (text) => {
       if (!text) return false;
@@ -138,7 +159,6 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // ✅ Upload image (from multer)
     let imageUrl;
     if (req.files?.image?.[0]) {
       const imagePath = req.files.image[0].path;
@@ -146,7 +166,6 @@ export const sendMessage = async (req, res) => {
       imageUrl = uploadRes.secure_url;
     }
 
-    // ✅ Upload audio (from multer)
     let audioUrl;
     if (req.files?.audio?.[0]) {
       const audioPath = req.files.audio[0].path;
@@ -156,7 +175,16 @@ export const sendMessage = async (req, res) => {
       audioUrl = uploadRes.secure_url;
     }
 
-    // ✅ Create and save message
+    let replyMessage = null;
+    if (replyTo) {
+      replyMessage = await Message.findById(replyTo);
+      if (!replyMessage) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid replyTo message ID." });
+      }
+    }
+
     const newMessage = await Message.create({
       senderId,
       receiverId,
@@ -164,9 +192,18 @@ export const sendMessage = async (req, res) => {
       image: imageUrl,
       audio: audioUrl,
       duration: duration || null,
+      replyTo: replyTo || null,
     });
 
-    // 🔔 Emit via socket
+    await newMessage.populate({
+      path: "replyTo",
+      select: "text image audio duration senderId",
+      populate: {
+        path: "senderId",
+        select: "fullName",
+      },
+    });
+
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
@@ -213,12 +250,16 @@ export const editMessage = async (req, res) => {
     const message = await Message.findById(messageId);
 
     if (!message) {
-      return res.status(404).json({ success: false, message: "Message not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Message not found." });
     }
 
     if (!message.senderId || !message.senderId.toString) {
       console.log("❌ senderId is missing or invalid:", message);
-      return res.status(400).json({ success: false, message: "Invalid senderId." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid senderId." });
     }
 
     const senderIdStr = message.senderId.toString();
@@ -239,6 +280,25 @@ export const editMessage = async (req, res) => {
     return res.json({ success: true, message });
   } catch (error) {
     console.error("🔥 editMessage error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET a specific message by ID (for replyTo preview)
+export const getReplyMessage = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.id).select(
+      "text image audio duration"
+    );
+    if (!message) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Reply message not found." });
+    }
+
+    return res.json({ success: true, message });
+  } catch (error) {
+    console.log("getReplyMessage error:", error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -7,7 +7,8 @@ import {
   markMessageAsSeen,
   sendMessage,
   deleteChat,
-  editMessage
+  editMessage,
+  getReplyMessage,
 } from "../controllers/messageController.js";
 
 const messageRouter = express.Router();
@@ -29,5 +30,6 @@ messageRouter.post(
 
 messageRouter.delete("/delete/:id", protectRoute, deleteChat);
 messageRouter.put("/edit/:id", protectRoute, editMessage);
+messageRouter.get("/reply/:id", protectRoute, getReplyMessage);
 
 export default messageRouter;

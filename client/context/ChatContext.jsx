@@ -12,6 +12,7 @@ export const ChatProvider = ({ children }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [unseenMessages, setUnseenMessages] = useState({});
   const [pinnedChats, setPinnedChats] = useState([]);
+  const [replyToMessage, setReplyToMessage] = useState(null);
 
   const { socket, axios } = useContext(AuthContext);
 
@@ -99,64 +100,69 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Sending
-const sendMessage = async ({ text, audio, image }) => {
-  if (!selectedUser) return;
-  if (text && containsForbiddenInfo(text)) {
-    toast.error("Message contains restricted info.");
-    return;
-  }
+  const sendMessage = async ({ text, audio, image }) => {
+    if (!selectedUser) return;
 
-  try {
-    const formData = new FormData();
-    if (text) formData.append("text", text);
-    if (audio) formData.append("audio", audio);
-    if (image) formData.append("image", image);
-
-    // ❌ DON'T manually set Content-Type
-    const { data } = await axios.post(
-      `/api/messages/send/${selectedUser._id}`,
-      formData
-    );
-
-    if (data.success) {
-      setMessages((prev) => [...prev, data.newMessage]);
-    } else {
-      toast.error(data.message);
-    }
-  } catch (error) {
-    toast.error(error?.message || "Message send failed");
-  }
-};
-
-const sendGroupMessage = async ({ text, audio, image, document }) => {
-  if (!selectedGroup) return;
-  if (text && containsForbiddenInfo(text)) {
-    toast.error("Group message contains restricted info.");
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    if (text) formData.append("text", text);
-    if (audio) formData.append("audio", audio);
-    if (image) formData.append("image", image);
-    if (document) {
-      formData.append("document", document);
-      formData.append("documentName", document.name); // 👈 important for UI
+    if (text && containsForbiddenInfo(text)) {
+      toast.error("Message contains restricted info.");
+      return;
     }
 
-    const { data } = await axios.post(
-      `/api/groups/group/send/${selectedGroup._id}`,
-      formData
-    );
+    try {
+      const formData = new FormData();
 
-    if (!data.success) {
-      toast.error(data.message);
+      if (text) formData.append("text", text);
+      if (audio) formData.append("audio", audio);
+      if (image) formData.append("image", image);
+      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id); // ✅ add replyTo
+
+      const { data } = await axios.post(
+        `/api/messages/send/${selectedUser._id}`,
+        formData
+      );
+
+      if (data.success) {
+        setMessages((prev) => [...prev, data.newMessage]);
+        setReplyToMessage(null); // ✅ clear replyTo after sending
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error?.message || "Message send failed");
     }
-  } catch (error) {
-    toast.error(error?.response?.data?.message || "Failed to send group message");
-  }
-};
+  };
+
+  const sendGroupMessage = async ({ text, audio, image, document }) => {
+    if (!selectedGroup) return;
+    if (text && containsForbiddenInfo(text)) {
+      toast.error("Group message contains restricted info.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      if (text) formData.append("text", text);
+      if (audio) formData.append("audio", audio);
+      if (image) formData.append("image", image);
+      if (document) {
+        formData.append("document", document);
+        formData.append("documentName", document.name); // 👈 important for UI
+      }
+
+      const { data } = await axios.post(
+        `/api/groups/group/send/${selectedGroup._id}`,
+        formData
+      );
+
+      if (!data.success) {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to send group message"
+      );
+    }
+  };
 
   // Realtime
   const subscribeToMessages = () => {
@@ -167,6 +173,20 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
       const isActive =
         (isGroup && selectedGroup?._id === newMessage.groupId) ||
         (!isGroup && selectedUser?._id === newMessage.senderId);
+
+      // ✅ Populate replyTo message if it's just an ID
+      if (newMessage.replyTo && typeof newMessage.replyTo === "string") {
+        try {
+          const { data } = await axios.get(
+            `/api/messages/reply/${newMessage.replyTo}`
+          );
+          if (data.success) {
+            newMessage.replyTo = data.message;
+          }
+        } catch (error) {
+          console.error("Failed to populate replyTo:", error.message);
+        }
+      }
 
       if (isActive) {
         newMessage.seen = true;
@@ -242,7 +262,9 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
 
   const clearGroupChat = async (groupId) => {
     try {
-      const { data } = await axios.delete(`/api/groups/clear-messages/${groupId}`);
+      const { data } = await axios.delete(
+        `/api/groups/clear-messages/${groupId}`
+      );
       if (data.success) {
         toast.success(data.message);
         setMessages([]);
@@ -257,11 +279,15 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
   // Group Management
   const renameGroup = async (groupId, newName) => {
     try {
-      const { data } = await axios.put(`/api/groups/rename/${groupId}`, { name: newName });
+      const { data } = await axios.put(`/api/groups/rename/${groupId}`, {
+        name: newName,
+      });
       if (data.success) {
         toast.success(data.message);
-        setGroups((prev) => prev.map((g) => g._id === groupId ? { ...g, name: newName } : g));
-        setSelectedGroup((prev) => prev ? { ...prev, name: newName } : null);
+        setGroups((prev) =>
+          prev.map((g) => (g._id === groupId ? { ...g, name: newName } : g))
+        );
+        setSelectedGroup((prev) => (prev ? { ...prev, name: newName } : null));
       }
     } catch (error) {
       toast.error(error?.message || "Failed to rename group");
@@ -270,7 +296,9 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
 
   const addMemberToGroup = async (groupId, userId) => {
     try {
-      const { data } = await axios.put(`/api/groups/add/${groupId}`, { userId });
+      const { data } = await axios.put(`/api/groups/add/${groupId}`, {
+        userId,
+      });
       if (data.success) {
         toast.success(data.message);
         getGroupMessages(groupId);
@@ -282,11 +310,15 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
 
   const removeMemberFromGroup = async (groupId, userId) => {
     try {
-      const { data } = await axios.put(`/api/groups/remove/${groupId}`, { userId });
+      const { data } = await axios.put(`/api/groups/remove/${groupId}`, {
+        userId,
+      });
       if (data.success) {
         toast.success(data.message);
         setSelectedGroup((prev) =>
-          prev ? { ...prev, members: prev.members.filter((m) => m._id !== userId) } : null
+          prev
+            ? { ...prev, members: prev.members.filter((m) => m._id !== userId) }
+            : null
         );
       }
     } catch (error) {
@@ -297,7 +329,9 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
   // Pins
   const togglePinChat = (chatId) => {
     setPinnedChats((prev) =>
-      prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]
+      prev.includes(chatId)
+        ? prev.filter((id) => id !== chatId)
+        : [...prev, chatId]
     );
   };
 
@@ -310,37 +344,51 @@ const sendGroupMessage = async ({ text, audio, image, document }) => {
     localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
   }, [pinnedChats]);
 
-  const contextValue = useMemo(() => ({
-    users,
-    groups,
-    messages,
-    unseenMessages,
-    selectedUser,
-    selectedGroup,
-    pinnedChats,
-    togglePinChat,
-    setSelectedUser,
-    setSelectedGroup,
-    getUsers,
-    getGroups,
-    getMessages,
-    getGroupMessages,
-    setUnseenMessages,
-    sendMessage,
-    sendGroupMessage,
-    deleteChat,
-    clearChat,
-    deleteGroupChat,
-    clearGroupChat,
-    renameGroup,
-    addMemberToGroup,
-    removeMemberFromGroup,
-    socket,
-  }), [users, groups, messages, unseenMessages, selectedUser, selectedGroup, pinnedChats, socket]);
+  const contextValue = useMemo(
+    () => ({
+      users,
+      groups,
+      messages,
+      unseenMessages,
+      selectedUser,
+      selectedGroup,
+      pinnedChats,
+      togglePinChat,
+      setSelectedUser,
+      setSelectedGroup,
+      getUsers,
+      getGroups,
+      getMessages,
+      getGroupMessages,
+      setUnseenMessages,
+      sendMessage,
+      sendGroupMessage,
+      deleteChat,
+      clearChat,
+      deleteGroupChat,
+      clearGroupChat,
+      renameGroup,
+      addMemberToGroup,
+      removeMemberFromGroup,
+      replyToMessage,
+      setReplyToMessage,
+      socket,
+    }),
+    [
+      users,
+      groups,
+      messages,
+      unseenMessages,
+      selectedUser,
+      selectedGroup,
+      pinnedChats,
+      replyToMessage,
+      setReplyToMessage,
+      socket,
+    ]
+  );
 
   return (
-    <ChatContext.Provider value={contextValue}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
   );
 };

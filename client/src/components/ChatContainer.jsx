@@ -15,6 +15,8 @@ const ChatContainer = () => {
     sendMessage,
     getMessages,
     deleteChat,
+    replyToMessage,
+    setReplyToMessage,
   } = useContext(ChatContext);
 
   const { authUser, onlineUsers } = useContext(AuthContext);
@@ -38,41 +40,40 @@ const ChatContainer = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (input.trim() === "") return;
-    await sendMessage({ text: input.trim() });
+    await sendMessage({
+      text: input.trim(),
+      replyTo: replyToMessage?._id || null,
+    });
     setInput("");
+    setReplyToMessage(null);
   };
 
- const handleSendImage = async (e) => {
-  const file = e.target.files[0];
-  if (!file || !file.type.startsWith("image/")) {
-    toast.error("Please select a valid image file!");
-    return;
-  }
+  const handleSendImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file!");
+      return;
+    }
+    try {
+      await sendMessage({ image: file });
+    } catch {
+      toast.error("Failed to send image!");
+    }
+    e.target.value = "";
+  };
 
-  try {
-    await sendMessage({ image: file }); // ✅ Pass as object, not FormData
-  } catch (err) {
-    toast.error("Failed to send image!");
-  }
-
-  e.target.value = "";
-};
-
-
- const handleRecordingComplete = async (file, audioURL, duration) => {
-  try {
-    await sendMessage({ audio: file }); // ✅ Only audio for now
-    toast.success("Voice note sent!");
-  } catch (err) {
-    toast.error("Failed to send voice note");
-  }
-  setShowRecorder(false);
-};
-
+  const handleRecordingComplete = async (file) => {
+    try {
+      await sendMessage({ audio: file });
+      toast.success("Voice note sent!");
+    } catch {
+      toast.error("Failed to send voice note");
+    }
+    setShowRecorder(false);
+  };
 
   const handleDeleteChat = async () => {
-    const confirm = window.confirm("Are you sure you want to delete this chat?");
-    if (confirm) {
+    if (window.confirm("Are you sure you want to delete this chat?")) {
       await deleteChat(selectedUser._id);
       setSelectedUser(null);
     }
@@ -81,7 +82,9 @@ const ChatContainer = () => {
   const formatDuration = (duration) => {
     const mins = Math.floor(duration / 60);
     const secs = Math.floor(duration % 60);
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   useEffect(() => {
@@ -104,20 +107,43 @@ const ChatContainer = () => {
             alt="User avatar"
             className="w-8 h-8 rounded-full"
           />
-          <div className="flex flex-col cursor-pointer" onClick={() => setShowProfile(!showProfile)}>
-            <p className="text-lg text-black font-semibold">{selectedUser.fullName}</p>
-            <span className={`text-xs font-medium ${onlineUsers.includes(selectedUser._id) ? "text-green-500" : "text-gray-500"}`}>
+          <div
+            className="flex flex-col cursor-pointer"
+            onClick={() => setShowProfile(!showProfile)}
+          >
+            <p className="text-lg text-black font-semibold">
+              {selectedUser.fullName}
+            </p>
+            <span
+              className={`text-xs font-medium ${
+                onlineUsers.includes(selectedUser._id)
+                  ? "text-green-500"
+                  : "text-gray-500"
+              }`}
+            >
               {getUserStatus(selectedUser)}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-3 text-black">
-          <Trash2 size={18} onClick={handleDeleteChat} className="cursor-pointer hover:text-red-500" title="Delete Chat" />
-          <X size={20} onClick={() => setSelectedUser(null)} className="cursor-pointer hover:text-red-500" title="Close Chat" />
+          <Trash2
+            size={18}
+            onClick={handleDeleteChat}
+            className="cursor-pointer hover:text-red-500"
+            title="Delete Chat"
+          />
+          <X
+            size={20}
+            onClick={() => setSelectedUser(null)}
+            className="cursor-pointer hover:text-red-500"
+            title="Close Chat"
+          />
         </div>
         {showProfile && (
           <div className="absolute top-14 left-4 bg-white text-black rounded-lg p-4 shadow-md z-50 w-60">
-            <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">User Info</h3>
+            <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">
+              User Info
+            </h3>
             <div className="flex items-center gap-2 mb-2">
               <img
                 src={selectedUser.profilePic || assets.avatar_icon}
@@ -126,7 +152,9 @@ const ChatContainer = () => {
               />
               <div>
                 <p className="font-medium">{selectedUser.fullName}</p>
-                <p className="text-sm text-gray-600">{getUserStatus(selectedUser)}</p>
+                <p className="text-sm text-gray-600">
+                  {getUserStatus(selectedUser)}
+                </p>
               </div>
             </div>
             {selectedUser.email && (
@@ -144,18 +172,50 @@ const ChatContainer = () => {
           if (!hasContent) return null;
 
           return (
-            <div key={msg._id} className={`flex flex-col ${isSentByMe ? "items-end" : "items-start"}`}>
+            <div
+              key={msg._id}
+              className={`flex flex-col ${
+                isSentByMe ? "items-end" : "items-start"
+              }`}
+            >
               <div
-                className={`max-w-[75%] p-3 text-sm rounded-xl break-words ${
+                className={`max-w-[75%] text-sm rounded-xl break-words shadow-md ${
                   msg.image || msg.audio
                     ? "bg-transparent p-0"
                     : isSentByMe
-                    ? "bg-purple-500 text-white"
-                    : "bg-white text-black border border-gray-200"
-                } shadow-md`}
+                    ? "bg-purple-500 text-white p-3"
+                    : "bg-white text-black border border-gray-200 p-3"
+                }`}
               >
+                {msg.replyTo && (
+                  <div
+                    className={`text-xs px-2 py-1 mb-2 border-l-4 ${
+                      isSentByMe ? "border-white" : "border-purple-500"
+                    } bg-gray-100 rounded`}
+                  >
+                    <p className="font-semibold text-gray-700 mb-1">
+                      {msg.replyTo.sender?.fullName || "Replied message"}
+                    </p>
+                    {msg.replyTo.text && (
+                      <p className="text-gray-600 truncate">
+                        {msg.replyTo.text}
+                      </p>
+                    )}
+                    {msg.replyTo.image && (
+                      <img
+                        src={msg.replyTo.image}
+                        alt="Reply image"
+                        className="w-20 h-20 rounded"
+                      />
+                    )}
+                  </div>
+                )}
                 {msg.image && (
-                  <img src={msg.image} alt="Chat image" className="max-w-[250px] rounded-xl shadow" />
+                  <img
+                    src={msg.image}
+                    alt="Chat image"
+                    className="max-w-[250px] rounded-xl shadow"
+                  />
                 )}
                 {msg.text && <span>{msg.text}</span>}
                 {msg.audio && (
@@ -176,18 +236,56 @@ const ChatContainer = () => {
                 {formatMessageTime(msg.createdAt)}
                 {isSentByMe && (
                   <span
-                    className={`ml-1 ${msg.seen ? "text-purple-500" : "text-gray-400"}`}
+                    className={`ml-1 ${
+                      msg.seen ? "text-purple-500" : "text-gray-400"
+                    }`}
                     title={msg.seen ? "Seen" : "Delivered"}
                   >
                     ✔
                   </span>
                 )}
               </div>
+
+              {/* ✅ Reply Button */}
+              {!isSentByMe && (
+                <button
+                  className="text-xs text-blue-600 hover:underline mt-1 ml-1"
+                  onClick={() => setReplyToMessage(msg)}
+                >
+                  Reply
+                </button>
+              )}
             </div>
           );
         })}
         <div ref={scrollEnd}></div>
       </div>
+
+      {/* ✅ Reply Preview */}
+      {replyToMessage && (
+        <div className="absolute bottom-20 left-4 right-4 bg-purple-100 border-l-4 border-purple-500 p-3 rounded-md shadow flex justify-between items-start">
+          <div className="text-sm">
+            <p className="font-semibold text-purple-800">
+              {replyToMessage.sender?.fullName || "Replied message"}
+            </p>
+            {replyToMessage.text && (
+              <p className="text-gray-700">{replyToMessage.text}</p>
+            )}
+            {replyToMessage.image && (
+              <img
+                src={replyToMessage.image}
+                alt="Reply preview"
+                className="w-16 h-16 rounded mt-1"
+              />
+            )}
+          </div>
+          <X
+            size={16}
+            className="text-purple-700 cursor-pointer ml-3"
+            onClick={() => setReplyToMessage(null)}
+          />
+        </div>
+      )}
 
       {/* Input Box */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-4 bg-white border-t border-gray-200">
@@ -200,13 +298,21 @@ const ChatContainer = () => {
             placeholder="Send a message..."
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
-          <input type="file" id="image" onChange={handleSendImage} accept="image/*" hidden />
+          <input
+            type="file"
+            id="image"
+            onChange={handleSendImage}
+            accept="image/*"
+            hidden
+          />
           <label htmlFor="image">
             <Image className="w-5 h-5 mr-3 cursor-pointer text-black" />
           </label>
-          <Mic className="w-5 h-5 mr-2 cursor-pointer text-black" onClick={() => setShowRecorder(!showRecorder)} />
+          <Mic
+            className="w-5 h-5 mr-2 cursor-pointer text-black"
+            onClick={() => setShowRecorder(!showRecorder)}
+          />
         </div>
-
         <img
           src={assets.send_button}
           alt="Send"
@@ -215,7 +321,7 @@ const ChatContainer = () => {
         />
       </div>
 
-      {/* Voice Recorder (Popup) */}
+      {/* Voice Recorder */}
       {showRecorder && (
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50">
           <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
