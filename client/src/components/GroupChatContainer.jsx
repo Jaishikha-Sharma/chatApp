@@ -90,6 +90,25 @@ const GroupChatContainer = () => {
     }
   };
 
+  const getDayLabel = (dateString) => {
+    const today = new Date();
+    const date = new Date(dateString);
+
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    const diffDays = (today - date) / (1000 * 60 * 60 * 24);
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+
+    return date.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   // Insert mention in the input when clicked or selected from list
   const insertMention = (user) => {
     if (mentionStartPos === null) return;
@@ -381,110 +400,125 @@ const GroupChatContainer = () => {
 
       {/* Messages */}
       <div className="flex flex-col h-[calc(100%-168px)] overflow-y-scroll p-3 pb-6">
-        {messages.map((msg) => {
-          if (!msg || !msg.senderId) return null;
-          const senderId = msg.senderId._id || msg.senderId;
-          const isOwn = senderId === authUser._id;
-          const senderPic = msg.senderId?.profilePic || assets.avatar_icon;
+        {(() => {
+          let lastDate = null; // Pehle null rakh lo
 
-          return (
-            <div
-              key={msg._id}
-              id={`msg-${msg._id}`}
-              ref={(el) => (messageRefs.current[msg._id] = el)}
-              className={`flex items-end mb-4 gap-2 ${
-                isOwn ? "justify-end" : "justify-start"
-              }`}
-            >
-              {!isOwn && (
-                <img
-                  src={senderPic}
-                  alt="avatar"
-                  className="w-7 h-7 rounded-full"
-                />
-              )}
-              <div>
-                {msg.replyTo && (
-                  <div
-                    onClick={() => handleScrollToReply(msg.replyTo._id)}
-                    className="text-xs text-gray-600 bg-gray-200 p-1 rounded mb-1 max-w-[230px] cursor-pointer hover:bg-gray-300"
-                  >
-                    Replying to: {msg.replyTo.text || "Media message"}
+          return messages.map((msg) => {
+            if (!msg || !msg.senderId) return null;
+            const messageDate = new Date(msg.createdAt).toDateString();
+            const showDateSeparator = lastDate !== messageDate;
+            lastDate = messageDate;
+
+            const senderId = msg.senderId._id || msg.senderId;
+            const isOwn = senderId === authUser._id;
+            const senderPic = msg.senderId?.profilePic || assets.avatar_icon;
+
+            return (
+              <React.Fragment key={msg._id}>
+                {showDateSeparator && (
+                  <div className="text-center my-3 text-gray-500 text-xs font-semibold">
+                    {getDayLabel(msg.createdAt)}
                   </div>
                 )}
 
-                {msg.image ? (
-                  <img
-                    src={msg.image}
-                    alt="chat image"
-                    className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden"
-                  />
-                ) : msg.audio ? (
-                  <div
-                    className={`p-2 rounded-xl ${
-                      isOwn ? "bg-gray-100" : "bg-gray-100"
-                    }`}
-                  >
-                    <audio
-                      src={msg.audio}
-                      controls
-                      className="w-[200px] h-10"
-                    />
-                    {msg.duration && (
-                      <p className="text-xs text-gray-600 mt-1 text-right">
-                        Duration: {Math.round(msg.duration)} sec
-                      </p>
-                    )}
-                  </div>
-                ) : msg.document ? (
-                  <a
-                    href={msg.document?.replace(
-                      "/upload/",
-                      "/raw/upload/fl_attachment/"
-                    )}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="text-sm text-blue-600 underline max-w-[250px] break-words block bg-gray-100 p-3 rounded-lg"
-                  >
-                    {msg.documentName || "Download Document"}
-                  </a>
-                ) : (
-                  <p
-                    className={`p-3 max-w-[250px] text-sm font-medium rounded-2xl break-words ${
-                      isOwn
-                        ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-bl-none shadow-md"
-                        : "bg-gray-100 text-black rounded-br-none"
-                    }`}
-                  >
-                    {msg.text}
-                  </p>
-                )}
-                <button
-                  onClick={() => setReplyToMessage(msg)}
-                  className="text-[11px] text-blue-500 hover:underline mt-1"
-                >
-                  Reply
-                </button>
-
-                <p
-                  className={`text-[11px] mt-1 text-gray-400 ${
-                    isOwn ? "text-right" : "text-left"
+                <div
+                  id={`msg-${msg._id}`}
+                  ref={(el) => (messageRefs.current[msg._id] = el)}
+                  className={`flex items-end mb-4 gap-2 ${
+                    isOwn ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {formatMessageTime(msg.createdAt)}
-                </p>
-              </div>
-              {isOwn && (
-                <img
-                  src={authUser.profilePic || assets.avatar_icon}
-                  alt="avatar"
-                  className="w-7 h-7 rounded-full"
-                />
-              )}
-            </div>
-          );
-        })}
+                  {!isOwn && (
+                    <img
+                      src={senderPic}
+                      alt="avatar"
+                      className="w-7 h-7 rounded-full"
+                    />
+                  )}
+                  <div>
+                    {msg.replyTo && (
+                      <div
+                        onClick={() => handleScrollToReply(msg.replyTo._id)}
+                        className="text-xs text-gray-600 bg-gray-200 p-1 rounded mb-1 max-w-[230px] cursor-pointer hover:bg-gray-300"
+                      >
+                        Replying to: {msg.replyTo.text || "Media message"}
+                      </div>
+                    )}
+
+                    {msg.image ? (
+                      <img
+                        src={msg.image}
+                        alt="chat image"
+                        className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden"
+                      />
+                    ) : msg.audio ? (
+                      <div
+                        className={`p-2 rounded-xl ${
+                          isOwn ? "bg-gray-100" : "bg-gray-100"
+                        }`}
+                      >
+                        <audio
+                          src={msg.audio}
+                          controls
+                          className="w-[200px] h-10"
+                        />
+                        {msg.duration && (
+                          <p className="text-xs text-gray-600 mt-1 text-right">
+                            Duration: {Math.round(msg.duration)} sec
+                          </p>
+                        )}
+                      </div>
+                    ) : msg.document ? (
+                      <a
+                        href={msg.document?.replace(
+                          "/upload/",
+                          "/raw/upload/fl_attachment/"
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="text-sm text-blue-600 underline max-w-[250px] break-words block bg-gray-100 p-3 rounded-lg"
+                      >
+                        {msg.documentName || "Download Document"}
+                      </a>
+                    ) : (
+                      <p
+                        className={`p-3 max-w-[250px] text-sm font-medium rounded-2xl break-words ${
+                          isOwn
+                            ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-bl-none shadow-md"
+                            : "bg-gray-100 text-black rounded-br-none"
+                        }`}
+                      >
+                        {msg.text}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => setReplyToMessage(msg)}
+                      className="text-[11px] text-blue-500 hover:underline mt-1"
+                    >
+                      Reply
+                    </button>
+
+                    <p
+                      className={`text-[11px] mt-1 text-gray-400 ${
+                        isOwn ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {formatMessageTime(msg.createdAt)}
+                    </p>
+                  </div>
+                  {isOwn && (
+                    <img
+                      src={authUser.profilePic || assets.avatar_icon}
+                      alt="avatar"
+                      className="w-7 h-7 rounded-full"
+                    />
+                  )}
+                </div>
+              </React.Fragment>
+            );
+          });
+        })()}
         <div ref={scrollEnd}></div>
       </div>
 

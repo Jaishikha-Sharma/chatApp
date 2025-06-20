@@ -36,6 +36,20 @@ const ChatContainer = () => {
     if (diff < 1440) return `Last seen: ${Math.floor(diff / 60)} hr ago`;
     return `Last seen: ${Math.floor(diff / 1440)} day(s) ago`;
   };
+  const getDayLabel = (dateString) => {
+    const today = new Date();
+    const date = new Date(dateString);
+    const diffTime = today.setHours(0, 0, 0, 0) - date.setHours(0, 0, 0, 0);
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 86400000) return "Yesterday";
+    return date.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -165,99 +179,119 @@ const ChatContainer = () => {
       </div>
 
       {/* Messages */}
+      {/* Messages */}
       <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 space-y-3">
-        {messages.map((msg) => {
-          const isSentByMe = msg.senderId === authUser._id;
-          const hasContent = msg.text || msg.image || msg.audio;
-          if (!hasContent) return null;
+        {(() => {
+          let lastDate = null; // track last message's date
 
-          return (
-            <div
-              key={msg._id}
-              className={`flex flex-col ${
-                isSentByMe ? "items-end" : "items-start"
-              }`}
-            >
-              <div
-                className={`max-w-[75%] text-sm rounded-xl break-words shadow-md ${
-                  msg.image || msg.audio
-                    ? "bg-transparent p-0"
-                    : isSentByMe
-                    ? "bg-purple-500 text-white p-3"
-                    : "bg-white text-black border border-gray-200 p-3"
-                }`}
-              >
-                {msg.replyTo && (
+          return messages.map((msg) => {
+            const isSentByMe = msg.senderId === authUser._id;
+            const hasContent = msg.text || msg.image || msg.audio;
+            if (!hasContent) return null;
+
+            const msgDate = new Date(msg.createdAt).toDateString();
+            const showDateSeparator = lastDate !== msgDate;
+            lastDate = msgDate;
+
+            return (
+              <React.Fragment key={msg._id}>
+                {/* Date separator */}
+                {showDateSeparator && (
+                  <div className="text-center my-4">
+                    <span className="inline-block bg-gray-300 text-gray-800 text-xs px-3 py-1 rounded-full shadow-sm">
+                      {getDayLabel(msg.createdAt)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Your existing message item */}
+                <div
+                  className={`flex flex-col ${
+                    isSentByMe ? "items-end" : "items-start"
+                  }`}
+                >
                   <div
-                    className={`text-xs px-2 py-1 mb-2 border-l-4 ${
-                      isSentByMe ? "border-white" : "border-purple-500"
-                    } bg-gray-100 rounded`}
+                    className={`max-w-[75%] text-sm rounded-xl break-words shadow-md ${
+                      msg.image || msg.audio
+                        ? "bg-transparent p-0"
+                        : isSentByMe
+                        ? "bg-purple-500 text-white p-3"
+                        : "bg-white text-black border border-gray-200 p-3"
+                    }`}
                   >
-                    <p className="font-semibold text-gray-700 mb-1">
-                      {msg.replyTo.sender?.fullName || "Replied message"}
-                    </p>
-                    {msg.replyTo.text && (
-                      <p className="text-gray-600 truncate">
-                        {msg.replyTo.text}
-                      </p>
+                    {/* ... rest of your message rendering code ... */}
+                    {msg.replyTo && (
+                      <div
+                        className={`text-xs px-2 py-1 mb-2 border-l-4 ${
+                          isSentByMe ? "border-white" : "border-purple-500"
+                        } bg-gray-100 rounded`}
+                      >
+                        <p className="font-semibold text-gray-700 mb-1">
+                          {msg.replyTo.sender?.fullName || "Replied message"}
+                        </p>
+                        {msg.replyTo.text && (
+                          <p className="text-gray-600 truncate">
+                            {msg.replyTo.text}
+                          </p>
+                        )}
+                        {msg.replyTo.image && (
+                          <img
+                            src={msg.replyTo.image}
+                            alt="Reply image"
+                            className="w-20 h-20 rounded"
+                          />
+                        )}
+                      </div>
                     )}
-                    {msg.replyTo.image && (
+                    {msg.image && (
                       <img
-                        src={msg.replyTo.image}
-                        alt="Reply image"
-                        className="w-20 h-20 rounded"
+                        src={msg.image}
+                        alt="Chat image"
+                        className="max-w-[250px] rounded-xl shadow"
                       />
                     )}
-                  </div>
-                )}
-                {msg.image && (
-                  <img
-                    src={msg.image}
-                    alt="Chat image"
-                    className="max-w-[250px] rounded-xl shadow"
-                  />
-                )}
-                {msg.text && <span>{msg.text}</span>}
-                {msg.audio && (
-                  <div>
-                    <audio controls className="mt-1 max-w-[250px]">
-                      <source src={msg.audio} type="audio/webm" />
-                      Your browser does not support the audio element.
-                    </audio>
-                    {msg.duration && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Duration: {formatDuration(msg.duration)}
-                      </p>
+                    {msg.text && <span>{msg.text}</span>}
+                    {msg.audio && (
+                      <div>
+                        <audio controls className="mt-1 max-w-[250px]">
+                          <source src={msg.audio} type="audio/webm" />
+                          Your browser does not support the audio element.
+                        </audio>
+                        {msg.duration && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Duration: {formatDuration(msg.duration)}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-              <div className="text-xs mt-1 text-gray-500 flex items-center gap-1">
-                {formatMessageTime(msg.createdAt)}
-                {isSentByMe && (
-                  <span
-                    className={`ml-1 ${
-                      msg.seen ? "text-purple-500" : "text-gray-400"
-                    }`}
-                    title={msg.seen ? "Seen" : "Delivered"}
-                  >
-                    ✔
-                  </span>
-                )}
-              </div>
+                  <div className="text-xs mt-1 text-gray-500 flex items-center gap-1">
+                    {formatMessageTime(msg.createdAt)}
+                    {isSentByMe && (
+                      <span
+                        className={`ml-1 ${
+                          msg.seen ? "text-purple-500" : "text-gray-400"
+                        }`}
+                        title={msg.seen ? "Seen" : "Delivered"}
+                      >
+                        ✔
+                      </span>
+                    )}
+                  </div>
 
-              {/* ✅ Reply Button */}
-              {!isSentByMe && (
-                <button
-                  className="text-xs text-blue-600 hover:underline mt-1 ml-1"
-                  onClick={() => setReplyToMessage(msg)}
-                >
-                  Reply
-                </button>
-              )}
-            </div>
-          );
-        })}
+                  {!isSentByMe && (
+                    <button
+                      className="text-xs text-blue-600 hover:underline mt-1 ml-1"
+                      onClick={() => setReplyToMessage(msg)}
+                    >
+                      Reply
+                    </button>
+                  )}
+                </div>
+              </React.Fragment>
+            );
+          });
+        })()}
         <div ref={scrollEnd}></div>
       </div>
 
