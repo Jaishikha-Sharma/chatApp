@@ -38,6 +38,7 @@ const GroupChatContainer = () => {
   const [audioFile, setAudioFile] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [audioDuration, setAudioDuration] = useState(null);
+  const messageRefs = useRef({});
 
   useEffect(() => {
     if (selectedGroup) {
@@ -188,6 +189,14 @@ const GroupChatContainer = () => {
     }
   };
 
+  const handleScrollToReply = (msgId) => {
+    const el = messageRefs.current[msgId];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring", "ring-yellow-400");
+      setTimeout(() => el.classList.remove("ring", "ring-yellow-400"), 1500);
+    }
+  };
   const handleRename = async () => {
     if (newGroupName.trim()) {
       await renameGroup(selectedGroup._id, newGroupName.trim());
@@ -381,6 +390,8 @@ const GroupChatContainer = () => {
           return (
             <div
               key={msg._id}
+              id={`msg-${msg._id}`}
+              ref={(el) => (messageRefs.current[msg._id] = el)}
               className={`flex items-end mb-4 gap-2 ${
                 isOwn ? "justify-end" : "justify-start"
               }`}
@@ -394,7 +405,10 @@ const GroupChatContainer = () => {
               )}
               <div>
                 {msg.replyTo && (
-                  <div className="text-xs text-gray-600 bg-gray-200 p-1 rounded mb-1 max-w-[230px]">
+                  <div
+                    onClick={() => handleScrollToReply(msg.replyTo._id)}
+                    className="text-xs text-gray-600 bg-gray-200 p-1 rounded mb-1 max-w-[230px] cursor-pointer hover:bg-gray-300"
+                  >
                     Replying to: {msg.replyTo.text || "Media message"}
                   </div>
                 )}
