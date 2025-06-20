@@ -132,41 +132,41 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendGroupMessage = async ({ text, audio, image, document }) => {
-    if (!selectedGroup) return;
-    if (text && containsForbiddenInfo(text)) {
-      toast.error("Group message contains restricted info.");
-      return;
+const sendGroupMessage = async ({ text, audio, image, document }) => {
+  if (!selectedGroup) return;
+  if (text && containsForbiddenInfo(text)) {
+    toast.error("Group message contains restricted info.");
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    if (text) formData.append("text", text);
+    if (audio) formData.append("audio", audio);
+    if (image) formData.append("image", image);
+    if (document) {
+      formData.append("document", document);
+      formData.append("documentName", document.name);
     }
+    if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id);
 
-    try {
-      const formData = new FormData();
-      if (text) formData.append("text", text);
-      if (audio) formData.append("audio", audio);
-      if (image) formData.append("image", image);
-      if (document) {
-        formData.append("document", document);
-        formData.append("documentName", document.name);
-      }
-      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id); // ✅ Add this line
+    const { data } = await axios.post(
+      `/api/groups/group/send/${selectedGroup._id}`,
+      formData
+    );
 
-      const { data } = await axios.post(
-        `/api/groups/group/send/${selectedGroup._id}`,
-        formData
-      );
-
-      if (data.success) {
-        setMessages((prev) => [...prev, data.message]); // ✅ update chat immediately
-        setReplyToMessage(null); // ✅ clear reply after sending
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Failed to send group message"
-      );
+    if (data.success) {
+      // ✅ DO NOT manually push message here
+      setReplyToMessage(null); // just clear the reply
+    } else {
+      toast.error(data.message);
     }
-  };
+  } catch (error) {
+    toast.error(
+      error?.response?.data?.message || "Failed to send group message"
+    );
+  }
+};
 
   // Realtime
   const subscribeToMessages = () => {

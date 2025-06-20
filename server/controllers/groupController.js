@@ -335,7 +335,6 @@ export const sendGroupMessage = async (req, res) => {
   }
 };
 
-
 // Get group messages
 export const getGroupMessages = async (req, res) => {
   try {
@@ -362,7 +361,6 @@ export const getGroupMessages = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // Clear group messages for current user
 export const clearGroupMessages = async (req, res) => {

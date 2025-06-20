@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { Mic, Square } from "lucide-react";
 
 const VoiceRecorder = ({ onRecordingComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -12,14 +13,14 @@ const VoiceRecorder = ({ onRecordingComplete }) => {
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       mediaRecorderRef.current.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], "voice-message.webm", { type: "audio/webm" });
+        const file = new File([blob], "voice-message.webm", {
+          type: "audio/webm",
+        });
 
         const arrayBuffer = await blob.arrayBuffer();
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -47,15 +48,19 @@ const VoiceRecorder = ({ onRecordingComplete }) => {
   };
 
   return (
-    <div className="bg-white border p-4 rounded-lg shadow">
+    <div className="flex justify-end pr-1">
       {!isRecording ? (
-        <button onClick={startRecording} className="text-purple-600 font-semibold">
-          🎙 Start Recording
-        </button>
+        <Mic
+          onClick={startRecording}
+          className="w-6 h-6 text-purple-600 cursor-pointer hover:text-purple-800 transition-colors"
+          title="Start Recording"
+        />
       ) : (
-        <button onClick={stopRecording} className="text-red-500 font-semibold">
-          ⏹ Stop Recording
-        </button>
+        <Square
+          onClick={stopRecording}
+          className="w-6 h-6 text-red-500 cursor-pointer hover:text-red-700 transition-colors animate-pulse"
+          title="Stop Recording"
+        />
       )}
     </div>
   );

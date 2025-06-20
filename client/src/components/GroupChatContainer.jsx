@@ -5,6 +5,7 @@ import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
 import { X, MoreVertical, Image, Paperclip } from "lucide-react";
+import VoiceRecorder from "../pages/VoiceRecorder.jsx";
 
 const GroupChatContainer = () => {
   const {
@@ -27,13 +28,14 @@ const GroupChatContainer = () => {
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
-
-  // For mention functionality:
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartPos, setMentionStartPos] = useState(null);
   const inputRef = useRef(null);
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [audioDuration, setAudioDuration] = useState(null);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -192,6 +194,24 @@ const GroupChatContainer = () => {
         <p className="text-lg font-medium text-white">Select a group to chat</p>
       </div>
     );
+
+  const handleRecordingComplete = (file, url, duration) => {
+    setAudioFile(file);
+    setAudioUrl(url);
+    setAudioDuration(duration);
+  };
+  const sendAudioMessage = async () => {
+    if (!audioFile) return;
+
+    await sendGroupMessage({
+      audio: audioFile,
+      duration: audioDuration,
+    });
+
+    setAudioFile(null);
+    setAudioUrl(null);
+    setAudioDuration(null);
+  };
 
   return (
     <div className="h-full overflow-scroll relative backdrop-blur-lg">
@@ -371,6 +391,23 @@ const GroupChatContainer = () => {
                     alt="chat image"
                     className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden"
                   />
+                ) : msg.audio ? (
+                  <div
+                    className={`p-2 rounded-xl ${
+                      isOwn ? "bg-gray-100" : "bg-gray-100"
+                    }`}
+                  >
+                    <audio
+                      src={msg.audio}
+                      controls
+                      className="w-[200px] h-10"
+                    />
+                    {msg.duration && (
+                      <p className="text-xs text-gray-600 mt-1 text-right">
+                        Duration: {Math.round(msg.duration)} sec
+                      </p>
+                    )}
+                  </div>
                 ) : msg.document ? (
                   <a
                     href={msg.document}
@@ -414,66 +451,92 @@ const GroupChatContainer = () => {
       </div>
 
       {/* Input */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3 bg-white">
-        <div className="flex-1 flex flex-col relative">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !showMentionList) {
-                handleSendMessage(e);
-              }
-              // Keyboard navigation for mention list
-              if (showMentionList) {
-                // We'll skip complex keyboard navigation here for brevity,
-                // but you can enhance this later
-              }
-            }}
-            placeholder="Send a message"
-            className="flex-1 text-sm p-3 border-none rounded-lg outline-none text-black placeholder-gray-500 bg-gray-100"
-          />
-          {showMentionList && (
-            <ul className="absolute bottom-full mb-1 max-h-40 w-full overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-50">
-              {mentionSuggestions.map((user) => (
-                <li
-                  key={user._id}
-                  onClick={() => insertMention(user)}
-                  className="px-3 py-2 cursor-pointer hover:bg-blue-100"
-                >
-                  {user.fullName}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <input
-          type="file"
-          id="group-image"
-          onChange={handleSendImage}
-          accept="image/*"
-          hidden
-        />
-        <input
-          type="file"
-          id="group-doc"
-          accept=".pdf,.doc,.docx,.txt"
-          onChange={handleSendDocument}
-          hidden
-        />
-        <label htmlFor="group-doc" className="cursor-pointer">
-          <Paperclip className="w-5 h-5 mr-2 cursor-pointer text-black" />
-        </label>
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-white">
+        {/* ✅ Audio preview if recorded */}
+        {audioFile && (
+          <div className="flex items-center gap-3 bg-gray-100 p-2 rounded">
+            <audio controls src={audioUrl} className="w-full" />
+            <button
+              onClick={sendAudioMessage}
+              className="bg-blue-600 text-white px-3 py-1 rounded"
+            >
+              Send
+            </button>
+            <button
+              onClick={() => {
+                setAudioFile(null);
+                setAudioUrl(null);
+                setAudioDuration(null);
+              }}
+              className="text-red-500 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
 
-        <label htmlFor="group-image" className="mr-2 cursor-pointer">
-          <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
-        </label>
-        <img
-          src={assets.send_button}
-          alt="Send"
-          onClick={handleSendMessage}
-          className="w-7 cursor-pointer"
-        />
+        {/* ✅ Text input + icons */}
+        <div className="flex items-center gap-3 mt-2">
+          <div className="flex-1 flex flex-col relative">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !showMentionList) handleSendMessage(e);
+              }}
+              placeholder="Send a message"
+              className="text-sm p-3 border-none rounded-lg outline-none text-black placeholder-gray-500 bg-gray-100 w-full"
+            />
+            {showMentionList && (
+              <ul className="absolute bottom-full mb-1 max-h-40 w-full overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-50">
+                {mentionSuggestions.map((user) => (
+                  <li
+                    key={user._id}
+                    onClick={() => insertMention(user)}
+                    className="px-3 py-2 cursor-pointer hover:bg-blue-100"
+                  >
+                    {user.fullName}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* File inputs */}
+          <input
+            type="file"
+            id="group-image"
+            onChange={handleSendImage}
+            accept="image/*"
+            hidden
+          />
+          <input
+            type="file"
+            id="group-doc"
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={handleSendDocument}
+            hidden
+          />
+
+          {/* Icons */}
+          <label htmlFor="group-doc" className="cursor-pointer">
+            <Paperclip className="w-5 h-5 mr-2 cursor-pointer text-black" />
+          </label>
+          <label htmlFor="group-image" className="cursor-pointer">
+            <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
+          </label>
+
+          {/* 🎙 Mic icon right next to image icon */}
+          <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
+
+          <img
+            src={assets.send_button}
+            alt="Send"
+            onClick={handleSendMessage}
+            className="w-7 cursor-pointer"
+          />
+        </div>
       </div>
     </div>
   );
