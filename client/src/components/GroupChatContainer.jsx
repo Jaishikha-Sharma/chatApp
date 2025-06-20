@@ -409,13 +409,18 @@ const GroupChatContainer = () => {
                     )}
                   </div>
                 ) : msg.document ? (
+                  
                   <a
-                    href={msg.document}
+                    href={msg.document?.replace(
+                      "/upload/",
+                      "/raw/upload/fl_attachment/"
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
+                    download
                     className="text-sm text-blue-600 underline max-w-[250px] break-words block bg-gray-100 p-3 rounded-lg"
                   >
-                    {msg.documentName || "View Document"}
+                    {msg.documentName || "Download Document"}
                   </a>
                 ) : (
                   <p

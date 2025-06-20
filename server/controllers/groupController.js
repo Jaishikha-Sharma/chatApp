@@ -282,7 +282,12 @@ export const sendGroupMessage = async (req, res) => {
     if (req.files?.document?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.document[0].path,
-        { resource_type: "auto", type: "upload" }
+        {
+          resource_type: "raw",
+          type: "upload",
+          use_filename: true,
+          unique_filename: false,
+        }
       );
       documentUrl = uploadRes.secure_url;
     }
