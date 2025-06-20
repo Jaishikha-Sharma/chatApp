@@ -114,9 +114,9 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {unseenMessages[item._id] > 0 && (
+        {unseenMessages[String(item._id)] > 0 && (
           <div className="min-h-[24px] min-w-[24px] px-[6px] flex items-center justify-center rounded-full bg-white text-[#ad46ff] text-xs font-extrabold shadow-lg border-2 border-[#ad46ff]">
-            {unseenMessages[item._id]}
+            {unseenMessages[String(item._id)]}
           </div>
         )}
 
