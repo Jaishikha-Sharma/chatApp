@@ -19,6 +19,8 @@ const GroupChatContainer = () => {
     renameGroup,
     addMemberToGroup,
     removeMemberFromGroup,
+    replyToMessage,
+    setReplyToMessage,
     users,
   } = useContext(ChatContext);
 
@@ -114,8 +116,14 @@ const GroupChatContainer = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
-    await sendGroupMessage({ text: input.trim() });
+
+    await sendGroupMessage({
+      text: input.trim(),
+      replyTo: replyToMessage?._id || null, // 🔁 send replyTo if available
+    });
+
     setInput("");
+    setReplyToMessage(null); // ✅ Clear reply state
     setShowMentionList(false);
     setMentionSuggestions([]);
     setMentionStartPos(null);
@@ -385,6 +393,12 @@ const GroupChatContainer = () => {
                 />
               )}
               <div>
+                {msg.replyTo && (
+                  <div className="text-xs text-gray-600 bg-gray-200 p-1 rounded mb-1 max-w-[230px]">
+                    Replying to: {msg.replyTo.text || "Media message"}
+                  </div>
+                )}
+
                 {msg.image ? (
                   <img
                     src={msg.image}
@@ -409,7 +423,6 @@ const GroupChatContainer = () => {
                     )}
                   </div>
                 ) : msg.document ? (
-                  
                   <a
                     href={msg.document?.replace(
                       "/upload/",
@@ -433,6 +446,12 @@ const GroupChatContainer = () => {
                     {msg.text}
                   </p>
                 )}
+                <button
+                  onClick={() => setReplyToMessage(msg)}
+                  className="text-[11px] text-blue-500 hover:underline mt-1"
+                >
+                  Reply
+                </button>
 
                 <p
                   className={`text-[11px] mt-1 text-gray-400 ${
@@ -457,6 +476,20 @@ const GroupChatContainer = () => {
 
       {/* Input */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-white">
+        {replyToMessage && (
+          <div className="bg-blue-100 text-sm text-black px-3 py-2 rounded flex justify-between items-center">
+            <p className="truncate max-w-[80%]">
+              Replying to: <b>{replyToMessage.text || "Media message"}</b>
+            </p>
+            <button
+              onClick={() => setReplyToMessage(null)}
+              className="text-red-500 text-xs"
+            >
+              ❌
+            </button>
+          </div>
+        )}
+
         {/* ✅ Audio preview if recorded */}
         {audioFile && (
           <div className="flex items-center gap-3 bg-gray-100 p-2 rounded">
