@@ -4,205 +4,114 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 
 const LoginPage = () => {
-  const [currentState, setCurrentState] = useState("Sign Up");
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
-  const [bio, setBio] = useState("");
-  const [isDataSubmitted, setIsDataSubmitted] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login, signup, authUser } = useContext(AuthContext);
+  const { login, authUser } = useContext(AuthContext);
   const navigate = useNavigate();
-
-  const toggleForm = () => {
-    setCurrentState(currentState === "Sign Up" ? "Login" : "Sign Up");
-    setIsDataSubmitted(false);
-    setFullName("");
-    setEmail("");
-    setPassword("");
-    setRole("");
-    setBio("");
-    setAgreeTerms(false);
-  };
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
-    if (currentState === "Sign Up" && !isDataSubmitted) {
-      setIsDataSubmitted(true);
-      return;
-    }
+    await login("login", { email, password });
 
-    if (currentState === "Sign Up") {
-      await signup({ fullName, email, password, role, bio });
-      toggleForm();
-    } else {
-      await login("login", { email, password });
-
-      setTimeout(() => {
-        const role = authUser?.role;
-        if (role === "Admin") navigate("/admin-dashboard");
-        else if (role === "Employee") navigate("/employee-panel");
-        else if (role === "Project Coordinator") navigate("/coordinator-panel");
-        else if (role === "Freelancer") navigate("/freelancer-panel");
-        else if (role === "Customer") navigate("/customer-panel");
-        else navigate("/");
-      }, 300);
-    }
+    setTimeout(() => {
+      const role = authUser?.role;
+      if (role === "Admin") navigate("/admin-dashboard");
+      else if (role === "Employee") navigate("/employee-panel");
+      else if (role === "Project Coordinator") navigate("/coordinator-panel");
+      else if (role === "Freelancer") navigate("/freelancer-panel");
+      else if (role === "Customer") navigate("/customer-panel");
+      else navigate("/");
+    }, 300);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-2xl bg-white max-md:flex-col">
-        {/* Left Side - Welcome Text */}
-        <div className="w-1/2 max-md:hidden bg-[#225EA8] text-white flex flex-col items-center justify-center p-12 text-center">
-          <h1 className="text-4xl font-bold mb-4">Welcome to ChatVerse</h1>
-          <p className="text-lg opacity-90">
-            Connect. Converse. Collaborate. <br />
-            Join thousands of users chatting in real-time.
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
+      <div className="w-full max-w-6xl flex flex-col md:flex-row bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
+        {/* Left: Illustration + Welcome */}
+        {/* Left: Animated Welcome Block without image */}
+        <div className="md:w-1/2 bg-[#225EA8] text-white flex flex-col justify-center items-center p-10 relative overflow-hidden">
+          <div className="text-5xl font-extrabold mb-3 animate-pulse">
+            ChatVerse 🚀
+          </div>
+          <p className="text-lg text-center max-w-xs leading-relaxed opacity-90">
+            Chat. Collaborate. Create.
+            <br />
+            <span className="text-sm opacity-70">
+              Where teams thrive together 💬💡
+            </span>
           </p>
+
+          {/* Floating emojis */}
+          <div className="absolute top-4 left-4 text-2xl animate-bounce">
+            💬
+          </div>
+          <div className="absolute bottom-4 right-6 text-3xl animate-spin-slow">
+            💡
+          </div>
+          <div className="absolute bottom-12 left-12 text-xl animate-float">
+            👥
+          </div>
+          <div className="absolute top-10 right-10 text-2xl animate-float">
+            🔥
+          </div>
         </div>
 
-        {/* Right Side - Form */}
+        {/* Right: Login Form */}
         <form
           onSubmit={onSubmitHandler}
-          className="w-1/2 max-md:w-full p-12 flex flex-col justify-center gap-6"
+          className="md:w-1/2 w-full p-10 flex flex-col justify-center gap-6 bg-white backdrop-blur-lg"
         >
-          <div className="flex justify-between items-center">
-            <h2 className="text-3xl font-bold text-gray-800">{currentState}</h2>
-            <button
-              type="button"
-              onClick={toggleForm}
-              className="text-sm text-[#225EA8] underline hover:text-[#174a93]"
+          <h3 className="text-3xl font-bold text-[#225EA8] text-center">
+            Log In
+          </h3>
+
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email Address"
+            required
+            className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
+          />
+
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              className="p-3 pr-12 w-full bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
+            />
+            <span
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-3 cursor-pointer text-gray-500"
             >
-              {currentState === "Sign Up" ? "Switch to Login" : "Switch to Sign Up"}
-            </button>
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
           </div>
-
-          {/* Common Inputs */}
-          {currentState === "Sign Up" && !isDataSubmitted && (
-            <>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Full Name"
-                required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-              />
-
-              {/* Role Dropdown */}
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-              >
-                <option value="">Select your role</option>
-                <option value="Admin">Admin</option>
-                <option value="Employee">Employee</option>
-                <option value="Project Coordinator">Project Coordinator</option>
-                <option value="Freelancer">Freelancer</option>
-                <option value="Customer">Customer</option>
-              </select>
-            </>
-          )}
-
-          {!isDataSubmitted && (
-            <>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-              />
-
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  className="p-3 pr-12 w-full bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-                />
-                <span
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-3 cursor-pointer text-gray-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </span>
-              </div>
-            </>
-          )}
-
-          {currentState === "Sign Up" && isDataSubmitted && (
-            <textarea
-              rows={4}
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Write something about yourself..."
-              className="p-3 bg-gray-100 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#225EA8] focus:outline-none"
-            ></textarea>
-          )}
-
-          {currentState === "Sign Up" && (
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="accent-[#225EA8] w-4 h-4"
-                required
-              />
-              I agree to the{" "}
-              <span className="underline text-[#225EA8] hover:text-[#174a93] cursor-pointer">
-                Terms & Conditions
-              </span>
-            </label>
-          )}
 
           <button
             type="submit"
-            disabled={currentState === "Sign Up" && !agreeTerms}
-            className={`py-3 rounded-xl font-semibold text-lg transition-all ${
-              currentState === "Sign Up" && !agreeTerms
-                ? "bg-[#b0cffa] text-white cursor-not-allowed"
-                : "bg-[#225EA8] text-white hover:bg-[#174a93] shadow-md"
-            }`}
+            className="py-3 rounded-xl font-semibold text-lg bg-[#225EA8] text-white hover:bg-[#1d4ca1] shadow-md transition-all duration-300"
           >
-            {currentState === "Sign Up" ? "Create Account" : "Login Now"}
+            Login Now
           </button>
-
-          <p className="text-center text-sm text-gray-600">
-            {currentState === "Sign Up" ? (
-              <>
-                Already have an account?{" "}
-                <span
-                  onClick={toggleForm}
-                  className="text-[#225EA8] underline cursor-pointer hover:text-[#174a93]"
-                >
-                  Login
-                </span>
-              </>
-            ) : (
-              <>
-                Don’t have an account?{" "}
-                <span
-                  onClick={toggleForm}
-                  className="text-[#225EA8] underline cursor-pointer hover:text-[#174a93]"
-                >
-                  Sign Up
-                </span>
-              </>
-            )}
-          </p>
         </form>
       </div>
+
+      {/* Floating animation */}
+      <style>{`
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+      `}</style>
     </div>
   );
 };
