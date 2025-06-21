@@ -523,28 +523,29 @@ const GroupChatContainer = () => {
       </div>
 
       {/* Input */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-white">
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-white shadow-md z-10">
+        {/* 🔁 Reply Preview */}
         {replyToMessage && (
           <div className="bg-blue-100 text-sm text-black px-3 py-2 rounded flex justify-between items-center">
-            <p className="truncate max-w-[80%]">
+            <p className="truncate max-w-[85%]">
               Replying to: <b>{replyToMessage.text || "Media message"}</b>
             </p>
             <button
               onClick={() => setReplyToMessage(null)}
-              className="text-red-500 text-xs"
+              className="text-red-500 text-xs ml-2"
             >
               ❌
             </button>
           </div>
         )}
 
-        {/* ✅ Audio preview if recorded */}
+        {/* 🔊 Audio Preview */}
         {audioFile && (
           <div className="flex items-center gap-3 bg-gray-100 p-2 rounded">
             <audio controls src={audioUrl} className="w-full" />
             <button
               onClick={sendAudioMessage}
-              className="bg-blue-600 text-white px-3 py-1 rounded"
+              className="bg-blue-600 text-white px-3 py-1 text-sm rounded hover:bg-blue-700"
             >
               Send
             </button>
@@ -561,9 +562,9 @@ const GroupChatContainer = () => {
           </div>
         )}
 
-        {/* ✅ Text input + icons */}
-        <div className="flex items-center gap-3 mt-2">
-          <div className="flex-1 flex flex-col relative">
+        {/* 💬 Text Input + Icons */}
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 relative">
             <input
               ref={inputRef}
               value={input}
@@ -572,10 +573,10 @@ const GroupChatContainer = () => {
                 if (e.key === "Enter" && !showMentionList) handleSendMessage(e);
               }}
               placeholder="Send a message"
-              className="text-sm p-3 border-none rounded-lg outline-none text-black placeholder-gray-500 bg-gray-100 w-full"
+              className="text-sm p-3 border border-gray-300 rounded-lg outline-none text-black placeholder-gray-500 bg-gray-50 w-full"
             />
             {showMentionList && (
-              <ul className="absolute bottom-full mb-1 max-h-40 w-full overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-50">
+              <ul className="absolute bottom-full left-0 mb-1 max-h-40 w-full overflow-y-auto bg-white border border-gray-300 rounded-md shadow-lg z-50">
                 {mentionSuggestions.map((user) => (
                   <li
                     key={user._id}
@@ -589,7 +590,7 @@ const GroupChatContainer = () => {
             )}
           </div>
 
-          {/* File inputs */}
+          {/* 📎 File Inputs */}
           <input
             type="file"
             id="group-image"
@@ -605,22 +606,23 @@ const GroupChatContainer = () => {
             hidden
           />
 
-          {/* Icons */}
+          {/* 📎 Icons */}
           <label htmlFor="group-doc" className="cursor-pointer">
-            <Paperclip className="w-5 h-5 mr-2 cursor-pointer text-black" />
+            <Paperclip className="w-5 h-5 text-gray-700 hover:text-blue-600" />
           </label>
           <label htmlFor="group-image" className="cursor-pointer">
-            <Image className="w-5 h-5 mr-2 cursor-pointer text-black" />
+            <Image className="w-5 h-5 text-gray-700 hover:text-blue-600" />
           </label>
 
-          {/* 🎙 Mic icon right next to image icon */}
+          {/* 🎙 Voice Recorder */}
           <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
 
+          {/* 📤 Send */}
           <img
             src={assets.send_button}
             alt="Send"
             onClick={handleSendMessage}
-            className="w-7 cursor-pointer"
+            className="w-7 h-7 cursor-pointer hover:opacity-80"
           />
         </div>
       </div>
