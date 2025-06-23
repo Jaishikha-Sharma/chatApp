@@ -279,14 +279,14 @@ const ChatContainer = () => {
                     )}
                   </div>
 
-                  {!isSentByMe && (
-                    <button
-                      className="text-xs text-blue-600 hover:underline mt-1 ml-1"
-                      onClick={() => setReplyToMessage(msg)}
-                    >
-                      Reply
-                    </button>
-                  )}
+                  <button
+                    className={`text-xs ${
+                      isSentByMe ? "text-purple-600" : "text-blue-600"
+                    } hover:underline mt-1 ml-1`}
+                    onClick={() => setReplyToMessage(msg)}
+                  >
+                    Reply
+                  </button>
                 </div>
               </React.Fragment>
             );
