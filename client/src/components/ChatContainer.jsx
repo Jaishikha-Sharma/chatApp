@@ -3,7 +3,7 @@ import { formatMessageTime } from "../lib/utils.js";
 import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import toast from "react-hot-toast";
-import { Trash2, X, Image, Mic } from "lucide-react";
+import { Trash2, X, Image, Mic, FileText } from "lucide-react";
 import assets from "../assets/assets";
 import VoiceRecorder from "../pages/VoiceRecorder.jsx";
 
@@ -101,6 +101,27 @@ const ChatContainer = () => {
       .padStart(2, "0")}`;
   };
 
+  const handleSendDocument = async (e) => {
+    const file = e.target.files[0];
+    if (
+      !file ||
+      ![
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ].includes(file.type)
+    ) {
+      toast.error("Only PDF or DOC files allowed");
+      return;
+    }
+    try {
+      await sendMessage({ document: file });
+    } catch {
+      toast.error("Failed to send document");
+    }
+    e.target.value = "";
+  };
+
   useEffect(() => {
     if (selectedUser) getMessages(selectedUser._id);
   }, [selectedUser]);
@@ -177,8 +198,6 @@ const ChatContainer = () => {
           </div>
         )}
       </div>
-
-      {/* Messages */}
       {/* Messages */}
       <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 space-y-3">
         {(() => {
@@ -186,7 +205,8 @@ const ChatContainer = () => {
 
           return messages.map((msg) => {
             const isSentByMe = msg.senderId === authUser._id;
-            const hasContent = msg.text || msg.image || msg.audio;
+            const hasContent =
+              msg.text || msg.image || msg.audio || msg.document;
             if (!hasContent) return null;
 
             const msgDate = new Date(msg.createdAt).toDateString();
@@ -263,6 +283,16 @@ const ChatContainer = () => {
                           </p>
                         )}
                       </div>
+                    )}
+                    {msg.document && (
+                      <a
+                        href={msg.document}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-sm text-white-600 underline"
+                      >
+                        {msg.documentName || "View Document"}
+                      </a>
                     )}
                   </div>
                   <div className="text-xs mt-1 text-gray-500 flex items-center gap-1">
@@ -347,6 +377,20 @@ const ChatContainer = () => {
             onClick={() => setShowRecorder(!showRecorder)}
           />
         </div>
+        <input
+          type="file"
+          id="document"
+          accept=".pdf,.doc,.docx"
+          hidden
+          onChange={handleSendDocument}
+        />
+        <label htmlFor="document">
+          <FileText
+            className="w-5 h-5 mr-2 cursor-pointer text-black hover:text-blue-600"
+            title="Attach Document"
+          />
+        </label>
+
         <img
           src={assets.send_button}
           alt="Send"

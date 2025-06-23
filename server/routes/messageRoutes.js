@@ -24,6 +24,7 @@ messageRouter.post(
   uploadMedia.fields([
     { name: "audio", maxCount: 1 },
     { name: "image", maxCount: 1 },
+    { name: "document", maxCount: 1 },
   ]),
   sendMessage
 );

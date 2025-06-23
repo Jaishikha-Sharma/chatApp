@@ -175,6 +175,18 @@ export const sendMessage = async (req, res) => {
       audioUrl = uploadRes.secure_url;
     }
 
+    // ✅ PDF/DOC Upload
+    let documentUrl, documentName;
+    if (req.files?.document?.[0]) {
+      const docPath = req.files.document[0].path;
+      const uploadRes = await cloudinary.uploader.upload(docPath, {
+        resource_type: "raw", // important for non-image files
+      });
+      documentUrl = uploadRes.secure_url;
+      documentName = req.files.document[0].originalname;
+    }
+
+    // ✅ If replying to a message
     let replyMessage = null;
     if (replyTo) {
       replyMessage = await Message.findById(replyTo);
@@ -185,6 +197,7 @@ export const sendMessage = async (req, res) => {
       }
     }
 
+    // ✅ Create the message
     const newMessage = await Message.create({
       senderId,
       receiverId,
@@ -193,6 +206,8 @@ export const sendMessage = async (req, res) => {
       audio: audioUrl,
       duration: duration || null,
       replyTo: replyTo || null,
+      document: documentUrl || null,
+      documentName: documentName || null,
     });
 
     await newMessage.populate({
@@ -204,6 +219,7 @@ export const sendMessage = async (req, res) => {
       },
     });
 
+    // ✅ Emit to receiver in real-time
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);

@@ -100,7 +100,7 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Sending
-  const sendMessage = async ({ text, audio, image }) => {
+  const sendMessage = async ({ text, audio, image, document }) => {
     if (!selectedUser) return;
 
     if (text && containsForbiddenInfo(text)) {
@@ -114,7 +114,16 @@ export const ChatProvider = ({ children }) => {
       if (text) formData.append("text", text);
       if (audio) formData.append("audio", audio);
       if (image) formData.append("image", image);
-      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id); // ✅ add replyTo
+
+      // ✅ Add document upload
+      if (document) {
+        formData.append("document", document);
+        formData.append("documentName", document.name); // optional, for info
+      }
+
+      if (replyToMessage?._id) {
+        formData.append("replyTo", replyToMessage._id);
+      }
 
       const { data } = await axios.post(
         `/api/messages/send/${selectedUser._id}`,
@@ -123,7 +132,7 @@ export const ChatProvider = ({ children }) => {
 
       if (data.success) {
         setMessages((prev) => [...prev, data.newMessage]);
-        setReplyToMessage(null); // ✅ clear replyTo after sending
+        setReplyToMessage(null);
       } else {
         toast.error(data.message);
       }
@@ -132,41 +141,41 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-const sendGroupMessage = async ({ text, audio, image, document }) => {
-  if (!selectedGroup) return;
-  if (text && containsForbiddenInfo(text)) {
-    toast.error("Group message contains restricted info.");
-    return;
-  }
-
-  try {
-    const formData = new FormData();
-    if (text) formData.append("text", text);
-    if (audio) formData.append("audio", audio);
-    if (image) formData.append("image", image);
-    if (document) {
-      formData.append("document", document);
-      formData.append("documentName", document.name);
+  const sendGroupMessage = async ({ text, audio, image, document }) => {
+    if (!selectedGroup) return;
+    if (text && containsForbiddenInfo(text)) {
+      toast.error("Group message contains restricted info.");
+      return;
     }
-    if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id);
 
-    const { data } = await axios.post(
-      `/api/groups/group/send/${selectedGroup._id}`,
-      formData
-    );
+    try {
+      const formData = new FormData();
+      if (text) formData.append("text", text);
+      if (audio) formData.append("audio", audio);
+      if (image) formData.append("image", image);
+      if (document) {
+        formData.append("document", document);
+        formData.append("documentName", document.name);
+      }
+      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id);
 
-    if (data.success) {
-      // ✅ DO NOT manually push message here
-      setReplyToMessage(null); // just clear the reply
-    } else {
-      toast.error(data.message);
+      const { data } = await axios.post(
+        `/api/groups/group/send/${selectedGroup._id}`,
+        formData
+      );
+
+      if (data.success) {
+        // ✅ DO NOT manually push message here
+        setReplyToMessage(null); // just clear the reply
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to send group message"
+      );
     }
-  } catch (error) {
-    toast.error(
-      error?.response?.data?.message || "Failed to send group message"
-    );
-  }
-};
+  };
 
   // Realtime
   const subscribeToMessages = () => {
