@@ -21,6 +21,8 @@ const GroupChatContainer = () => {
     removeMemberFromGroup,
     replyToMessage,
     setReplyToMessage,
+    forwardedMessage,
+    setForwardedMessage,
     users,
   } = useContext(ChatContext);
 
@@ -135,15 +137,17 @@ const GroupChatContainer = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() && !forwardedMessage) return;
 
     await sendGroupMessage({
-      text: input.trim(),
-      replyTo: replyToMessage?._id || null, // 🔁 send replyTo if available
+      text: input.trim() || null,
+      replyTo: replyToMessage?._id || null,
+      forwardedFrom: forwardedMessage?._id || null, // ✅ Add this
     });
 
     setInput("");
-    setReplyToMessage(null); // ✅ Clear reply state
+    setReplyToMessage(null);
+    setForwardedMessage(null); // ✅ Clear forwarded state
     setShowMentionList(false);
     setMentionSuggestions([]);
     setMentionStartPos(null);
@@ -498,6 +502,12 @@ const GroupChatContainer = () => {
                     >
                       Reply
                     </button>
+                    <button
+                      onClick={() => setForwardedMessage(msg)}
+                      className="text-[11px] text-purple-500 hover:underline ml-2"
+                    >
+                      Forward
+                    </button>
 
                     <p
                       className={`text-[11px] mt-1 text-gray-400 ${
@@ -524,6 +534,20 @@ const GroupChatContainer = () => {
 
       {/* Input */}
       <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-3 bg-white shadow-md z-10">
+        {forwardedMessage && (
+          <div className="bg-purple-100 text-sm text-black px-3 py-2 rounded flex justify-between items-center">
+            <p className="truncate max-w-[85%]">
+              Forwarding: <b>{forwardedMessage.text || "Media message"}</b>
+            </p>
+            <button
+              onClick={() => setForwardedMessage(null)}
+              className="text-red-500 text-xs ml-2"
+            >
+              ❌
+            </button>
+          </div>
+        )}
+
         {/* 🔁 Reply Preview */}
         {replyToMessage && (
           <div className="bg-blue-100 text-sm text-black px-3 py-2 rounded flex justify-between items-center">
