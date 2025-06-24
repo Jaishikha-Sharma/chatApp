@@ -17,6 +17,8 @@ const ChatContainer = () => {
     deleteChat,
     replyToMessage,
     setReplyToMessage,
+    setForwardedMessage,
+    forwardedMessage,
   } = useContext(ChatContext);
 
   const { authUser, onlineUsers } = useContext(AuthContext);
@@ -53,13 +55,16 @@ const ChatContainer = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (input.trim() === "") return;
+
     await sendMessage({
-      text: input.trim(),
+      text: input.trim() || null,
       replyTo: replyToMessage?._id || null,
+      forwardedMessage, // ✅ yaha directly state se bhej rahe ho
     });
+
     setInput("");
     setReplyToMessage(null);
+    setForwardedMessage(null);
   };
 
   const handleSendImage = async (e) => {
@@ -263,6 +268,33 @@ const ChatContainer = () => {
                         )}
                       </div>
                     )}
+                    {msg.forwardedFrom && (
+                      <div
+                        className={`text-xs px-2 py-1 mb-2 border-l-4 ${
+                          isSentByMe ? "border-white" : "border-purple-500"
+                        } bg-gray-100 rounded`}
+                      >
+                        <p className="font-semibold text-gray-700 mb-1">
+                          Forwarded from:{" "}
+                          {msg.forwardedFrom.senderId?.fullName || "Unknown"}
+                        </p>
+
+                        {msg.forwardedFrom.text && (
+                          <p className="text-gray-600 truncate">
+                            {msg.forwardedFrom.text}
+                          </p>
+                        )}
+
+                        {msg.forwardedFrom.image && (
+                          <img
+                            src={msg.forwardedFrom.image}
+                            alt="Forwarded image"
+                            className="w-20 h-20 rounded mt-1"
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {msg.image && (
                       <img
                         src={msg.image}
@@ -317,6 +349,14 @@ const ChatContainer = () => {
                   >
                     Reply
                   </button>
+                  <button
+                    className={`text-xs ${
+                      isSentByMe ? "text-purple-600" : "text-blue-600"
+                    } hover:underline mt-1 ml-1`}
+                    onClick={() => setForwardedMessage(msg)}
+                  >
+                    Forward
+                  </button>
                 </div>
               </React.Fragment>
             );
@@ -347,6 +387,31 @@ const ChatContainer = () => {
             size={16}
             className="text-purple-700 cursor-pointer ml-3"
             onClick={() => setReplyToMessage(null)}
+          />
+        </div>
+      )}
+      {forwardedMessage && (
+        <div className="absolute bottom-32 left-4 right-4 bg-white border border-blue-400 rounded-lg shadow-md p-3 flex items-start justify-between">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-blue-700 mb-1">
+              Forwarding message from{" "}
+              {forwardedMessage.sender?.fullName || "Unknown"}
+            </p>
+            {forwardedMessage.text && (
+              <p className="text-gray-800 text-sm">{forwardedMessage.text}</p>
+            )}
+            {forwardedMessage.image && (
+              <img
+                src={forwardedMessage.image}
+                alt="Forward preview"
+                className="w-20 h-20 rounded mt-2 object-cover"
+              />
+            )}
+          </div>
+          <X
+            size={18}
+            className="text-blue-600 hover:text-red-500 cursor-pointer ml-3"
+            onClick={() => setForwardedMessage(null)}
           />
         </div>
       )}

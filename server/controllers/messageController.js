@@ -90,14 +90,24 @@ export const getMessages = async (req, res) => {
       deletedFor: { $ne: myId },
     })
       .sort({ createdAt: 1 })
-      .populate({
-        path: "replyTo",
-        select: "text image audio duration senderId",
-        populate: {
-          path: "senderId",
-          select: "fullName",
+      .populate([
+        {
+          path: "replyTo",
+          select: "text image audio duration senderId",
+          populate: {
+            path: "senderId",
+            select: "fullName",
+          },
         },
-      });
+        {
+          path: "forwardedFrom",
+          select: "text image audio duration document documentName senderId",
+          populate: {
+            path: "senderId",
+            select: "fullName",
+          },
+        },
+      ]);
 
     await Message.updateMany(
       { senderId: selectedUserId, receiverId: myId, seen: false },
@@ -126,7 +136,7 @@ export const markMessageAsSeen = async (req, res) => {
 // Send message with role-based restriction
 export const sendMessage = async (req, res) => {
   try {
-    const { text, duration, replyTo } = req.body;
+    const { text, duration, replyTo, forwardedFrom } = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
 
@@ -141,6 +151,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    // ❌ Check for forbidden content
     const forbiddenPatterns = [
       /\b\d{10,}\b/g,
       /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi,
@@ -159,67 +170,90 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    let imageUrl;
+    // ✅ Uploads
+    let imageUrl, audioUrl, documentUrl, documentName;
+
     if (req.files?.image?.[0]) {
-      const imagePath = req.files.image[0].path;
-      const uploadRes = await cloudinary.uploader.upload(imagePath);
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.image[0].path
+      );
       imageUrl = uploadRes.secure_url;
     }
 
-    let audioUrl;
     if (req.files?.audio?.[0]) {
-      const audioPath = req.files.audio[0].path;
-      const uploadRes = await cloudinary.uploader.upload(audioPath, {
-        resource_type: "video",
-      });
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.audio[0].path,
+        {
+          resource_type: "video",
+        }
+      );
       audioUrl = uploadRes.secure_url;
     }
 
-    // ✅ PDF/DOC Upload
-    let documentUrl, documentName;
     if (req.files?.document?.[0]) {
-      const docPath = req.files.document[0].path;
-      const uploadRes = await cloudinary.uploader.upload(docPath, {
-        resource_type: "raw", // important for non-image files
-      });
+      const uploadRes = await cloudinary.uploader.upload(
+        req.files.document[0].path,
+        {
+          resource_type: "raw",
+        }
+      );
       documentUrl = uploadRes.secure_url;
       documentName = req.files.document[0].originalname;
     }
 
-    // ✅ If replying to a message
+    // ✅ ReplyTo validation
     let replyMessage = null;
     if (replyTo) {
       replyMessage = await Message.findById(replyTo);
       if (!replyMessage) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid replyTo message ID." });
+        return res.status(400).json({
+          success: false,
+          message: "Invalid replyTo message ID.",
+        });
       }
     }
 
-    // ✅ Create the message
+    // ✅ Forwarded message validation
+    let forwardMessage = null;
+    if (forwardedFrom) {
+      forwardMessage = await Message.findById(forwardedFrom);
+      if (!forwardMessage) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid forwardedFrom message ID.",
+        });
+      }
+    }
+
+    // ✅ Create new message
     const newMessage = await Message.create({
       senderId,
       receiverId,
       text,
-      image: imageUrl,
-      audio: audioUrl,
+      image: imageUrl || null,
+      audio: audioUrl || null,
       duration: duration || null,
       replyTo: replyTo || null,
+      forwardedFrom: forwardedFrom || null,
       document: documentUrl || null,
       documentName: documentName || null,
     });
 
-    await newMessage.populate({
-      path: "replyTo",
-      select: "text image audio duration senderId",
-      populate: {
-        path: "senderId",
-        select: "fullName",
+    // ✅ Populate reply and forwarded content
+    await newMessage.populate([
+      {
+        path: "replyTo",
+        select: "text image audio duration senderId",
+        populate: { path: "senderId", select: "fullName" },
       },
-    });
+      {
+        path: "forwardedFrom",
+        select: "text image audio duration document documentName senderId",
+        populate: { path: "senderId", select: "fullName" },
+      },
+    ]);
 
-    // ✅ Emit to receiver in real-time
+    // ✅ Real-time send
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);

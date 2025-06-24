@@ -217,20 +217,16 @@ export const deleteGroup = async (req, res) => {
 
 export const sendGroupMessage = async (req, res) => {
   try {
-    const { text, duration, documentName, replyTo } = req.body;
+    const { text, duration, documentName, replyTo, forwardedFrom } = req.body; // ⬅️ added forwardedFrom
     const { groupId } = req.params;
     const senderId = req.user._id;
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Group not found" });
+      return res.status(404).json({ success: false, message: "Group not found" });
     }
 
-    if (
-      !group.members.some((member) => member.toString() === senderId.toString())
-    ) {
+    if (!group.members.some((member) => member.toString() === senderId.toString())) {
       return res.status(403).json({
         success: false,
         message: "You are not a member of this group and cannot send messages.",
@@ -261,45 +257,45 @@ export const sendGroupMessage = async (req, res) => {
       });
     }
 
-    // ✅ Upload files if present
     let imageUrl, audioUrl, documentUrl;
 
     if (req.files?.image?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.image[0].path
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.image[0].path);
       imageUrl = uploadRes.secure_url;
     }
 
     if (req.files?.audio?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.audio[0].path,
-        { resource_type: "video" }
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.audio[0].path, {
+        resource_type: "video",
+      });
       audioUrl = uploadRes.secure_url;
     }
 
     if (req.files?.document?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.document[0].path,
-        {
-          resource_type: "raw",
-          type: "upload",
-          use_filename: true,
-          unique_filename: false,
-        }
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.document[0].path, {
+        resource_type: "raw",
+        type: "upload",
+        use_filename: true,
+        unique_filename: false,
+      });
       documentUrl = uploadRes.secure_url;
     }
 
-    // ✅ Handle reply message
+    // ✅ Handle replyTo
     let replyMessage = null;
     if (replyTo) {
       replyMessage = await Message.findById(replyTo);
       if (!replyMessage) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid replyTo message ID." });
+        return res.status(400).json({ success: false, message: "Invalid replyTo message ID." });
+      }
+    }
+
+    // ✅ Handle forwardedFrom
+    let forwardMessage = null;
+    if (forwardedFrom) {
+      forwardMessage = await Message.findById(forwardedFrom);
+      if (!forwardMessage) {
+        return res.status(400).json({ success: false, message: "Invalid forwardedFrom message ID." });
       }
     }
 
@@ -314,18 +310,23 @@ export const sendGroupMessage = async (req, res) => {
       document: documentUrl,
       documentName: documentName || null,
       replyTo: replyTo || null,
+      forwardedFrom: forwardedFrom || null, // ⬅️ new
     });
 
     const fullMessage = await Message.findById(newMessage._id)
       .populate("senderId", "fullName profilePic")
-      .populate({
-        path: "replyTo",
-        select: "text image audio duration senderId",
-        populate: {
-          path: "senderId",
-          select: "fullName",
+      .populate([
+        {
+          path: "replyTo",
+          select: "text image audio duration senderId",
+          populate: { path: "senderId", select: "fullName" },
         },
-      });
+        {
+          path: "forwardedFrom",
+          select: "text image audio document documentName duration senderId",
+          populate: { path: "senderId", select: "fullName" },
+        },
+      ]);
 
     io.to(groupId.toString()).emit("newMessage", {
       ...fullMessage._doc,
@@ -350,14 +351,24 @@ export const getGroupMessages = async (req, res) => {
       clearedBy: { $ne: req.user._id },
     })
       .populate("senderId", "fullName profilePic")
-      .populate({
-        path: "replyTo",
-        select: "text image audio duration senderId",
-        populate: {
-          path: "senderId",
-          select: "fullName",
+      .populate([
+        {
+          path: "replyTo",
+          select: "text image audio duration senderId",
+          populate: {
+            path: "senderId",
+            select: "fullName",
+          },
         },
-      })
+        {
+          path: "forwardedFrom",
+          select: "text image audio document documentName duration senderId",
+          populate: {
+            path: "senderId",
+            select: "fullName",
+          },
+        },
+      ])
       .sort({ createdAt: 1 });
 
     res.status(200).json({ success: true, messages });

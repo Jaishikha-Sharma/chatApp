@@ -13,6 +13,7 @@ export const ChatProvider = ({ children }) => {
   const [unseenMessages, setUnseenMessages] = useState({});
   const [pinnedChats, setPinnedChats] = useState([]);
   const [replyToMessage, setReplyToMessage] = useState(null);
+  const [forwardedMessage, setForwardedMessage] = useState(null);
 
   const { socket, axios } = useContext(AuthContext);
 
@@ -56,36 +57,50 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const getMessages = async (userId) => {
-    setSelectedGroup(null);
-    try {
-      const { data } = await axios.get(`/api/messages/${userId}`);
-      if (data.success) {
-        const updatedMessages = data.messages.map((msg) =>
-          !msg.seen && msg.senderId === userId ? { ...msg, seen: true } : msg
-        );
-        setMessages(updatedMessages);
+ const getMessages = async (userId) => {
+  setSelectedGroup(null);
+  try {
+    const { data } = await axios.get(`/api/messages/${userId}`);
+    if (data.success) {
+      const updatedMessages = await Promise.all(
+        data.messages.map(async (msg) => {
+          const newMsg = { ...msg };
 
-        const unseen = data.messages.filter(
-          (msg) => !msg.seen && msg.senderId === userId
-        );
+          if (newMsg.replyTo && typeof newMsg.replyTo === "string") {
+            try {
+              const { data } = await axios.get(`/api/messages/reply/${newMsg.replyTo}`);
+              if (data.success) newMsg.replyTo = data.message;
+            } catch {}
+          }
 
-        await Promise.all(
-          unseen.map((msg) =>
-            axios.put(`/api/messages/mark/${msg._id}`).catch(() => {})
-          )
-        );
+          if (newMsg.forwardedFrom && typeof newMsg.forwardedFrom === "string") {
+            try {
+              const { data } = await axios.get(`/api/messages/reply/${newMsg.forwardedFrom}`);
+              if (data.success) newMsg.forwardedFrom = data.message;
+            } catch {}
+          }
 
-        setUnseenMessages((prev) => {
-          const updated = { ...prev };
-          delete updated[userId];
-          return updated;
-        });
-      }
-    } catch (error) {
-      toast.error(error?.message || "Failed to fetch messages");
+          if (!newMsg.seen && newMsg.senderId === userId) {
+            newMsg.seen = true;
+            await axios.put(`/api/messages/mark/${newMsg._id}`).catch(() => {});
+          }
+
+          return newMsg;
+        })
+      );
+
+      setMessages(updatedMessages);
+
+      setUnseenMessages((prev) => {
+        const updated = { ...prev };
+        delete updated[userId];
+        return updated;
+      });
     }
-  };
+  } catch (error) {
+    toast.error(error?.message || "Failed to fetch messages");
+  }
+};
 
   const getGroupMessages = async (groupId) => {
     setSelectedUser(null);
@@ -100,7 +115,7 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Sending
-  const sendMessage = async ({ text, audio, image, document }) => {
+  const sendMessage = async ({ text, audio, image, document , forwardedMessage  }) => {
     if (!selectedUser) return;
 
     if (text && containsForbiddenInfo(text)) {
@@ -115,14 +130,20 @@ export const ChatProvider = ({ children }) => {
       if (audio) formData.append("audio", audio);
       if (image) formData.append("image", image);
 
-      // ✅ Add document upload
+      // ✅ Document support
       if (document) {
         formData.append("document", document);
-        formData.append("documentName", document.name); // optional, for info
+        formData.append("documentName", document.name);
       }
 
+      // ✅ Reply support
       if (replyToMessage?._id) {
         formData.append("replyTo", replyToMessage._id);
+      }
+
+      // ✅ Forward support
+      if (forwardedMessage?._id) {
+        formData.append("forwardedFrom", forwardedMessage._id);
       }
 
       const { data } = await axios.post(
@@ -133,6 +154,7 @@ export const ChatProvider = ({ children }) => {
       if (data.success) {
         setMessages((prev) => [...prev, data.newMessage]);
         setReplyToMessage(null);
+        setForwardedMessage(null);
       } else {
         toast.error(data.message);
       }
@@ -141,8 +163,9 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  const sendGroupMessage = async ({ text, audio, image, document }) => {
+  const sendGroupMessage = async ({ text, audio, image, document , forwardedMessage  }) => {
     if (!selectedGroup) return;
+
     if (text && containsForbiddenInfo(text)) {
       toast.error("Group message contains restricted info.");
       return;
@@ -150,14 +173,26 @@ export const ChatProvider = ({ children }) => {
 
     try {
       const formData = new FormData();
+
       if (text) formData.append("text", text);
       if (audio) formData.append("audio", audio);
       if (image) formData.append("image", image);
+
+      // ✅ Document support
       if (document) {
         formData.append("document", document);
         formData.append("documentName", document.name);
       }
-      if (replyToMessage?._id) formData.append("replyTo", replyToMessage._id);
+
+      // ✅ Reply support
+      if (replyToMessage?._id) {
+        formData.append("replyTo", replyToMessage._id);
+      }
+
+      // ✅ Forward support
+      if (forwardedMessage?._id) {
+        formData.append("forwardedFrom", forwardedMessage._id);
+      }
 
       const { data } = await axios.post(
         `/api/groups/group/send/${selectedGroup._id}`,
@@ -165,8 +200,9 @@ export const ChatProvider = ({ children }) => {
       );
 
       if (data.success) {
-        // ✅ DO NOT manually push message here
-        setReplyToMessage(null); // just clear the reply
+        // Normally socket will handle message addition
+        setReplyToMessage(null);
+        setForwardedMessage(null);
       } else {
         toast.error(data.message);
       }
@@ -178,48 +214,59 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Realtime
-  const subscribeToMessages = () => {
-    if (!socket) return;
+ const subscribeToMessages = () => {
+  if (!socket) return;
 
-    socket.on("newMessage", async (newMessage) => {
-      const isGroup = newMessage.isGroup;
-      const isActive =
-        (isGroup && selectedGroup?._id === newMessage.groupId) ||
-        (!isGroup && selectedUser?._id === newMessage.senderId);
+  socket.on("newMessage", async (newMessage) => {
+    const isGroup = newMessage.isGroup;
+    const isActive =
+      (isGroup && selectedGroup?._id === newMessage.groupId) ||
+      (!isGroup && selectedUser?._id === newMessage.senderId);
 
-      // ✅ Populate replyTo message if it's just an ID
-      if (newMessage.replyTo && typeof newMessage.replyTo === "string") {
-        try {
-          const { data } = await axios.get(
-            `/api/messages/reply/${newMessage.replyTo}`
-          );
-          if (data.success) {
-            newMessage.replyTo = data.message;
-          }
-        } catch (error) {
-          console.error("Failed to populate replyTo:", error.message);
+    // ✅ Populate replyTo message if it's just an ID
+    if (newMessage.replyTo && typeof newMessage.replyTo === "string") {
+      try {
+        const { data } = await axios.get(`/api/messages/reply/${newMessage.replyTo}`);
+        if (data.success) {
+          newMessage.replyTo = data.message;
         }
+      } catch (error) {
+        console.error("Failed to populate replyTo:", error.message);
       }
+    }
 
-      if (isActive) {
-        newMessage.seen = true;
-        setMessages((prev) =>
-          prev.some((msg) => msg._id === newMessage._id)
-            ? prev
-            : [...prev, newMessage]
-        );
-        try {
-          await axios.put(`/api/messages/mark/${newMessage._id}`);
-        } catch {}
-      } else {
-        const key = isGroup ? newMessage.groupId : newMessage.senderId;
-        setUnseenMessages((prev) => ({
-          ...prev,
-          [key]: (prev[key] || 0) + 1,
-        }));
+    // ✅ Populate forwardedFrom message if it's just an ID
+    if (newMessage.forwardedFrom && typeof newMessage.forwardedFrom === "string") {
+      try {
+        const { data } = await axios.get(`/api/messages/reply/${newMessage.forwardedFrom}`);
+        if (data.success) {
+          newMessage.forwardedFrom = data.message;
+        }
+      } catch (error) {
+        console.error("Failed to populate forwardedFrom:", error.message);
       }
-    });
-  };
+    }
+
+    if (isActive) {
+      newMessage.seen = true;
+      setMessages((prev) =>
+        prev.some((msg) => msg._id === newMessage._id)
+          ? prev
+          : [...prev, newMessage]
+      );
+      try {
+        await axios.put(`/api/messages/mark/${newMessage._id}`);
+      } catch {}
+    } else {
+      const key = isGroup ? newMessage.groupId : newMessage.senderId;
+      setUnseenMessages((prev) => ({
+        ...prev,
+        [key]: (prev[key] || 0) + 1,
+      }));
+    }
+  });
+};
+
 
   const unsubscribeFromMessages = () => {
     if (socket?.off) socket.off("newMessage");
@@ -385,6 +432,8 @@ export const ChatProvider = ({ children }) => {
       removeMemberFromGroup,
       replyToMessage,
       setReplyToMessage,
+      setForwardedMessage,
+      forwardedMessage, 
       socket,
     }),
     [
@@ -397,6 +446,7 @@ export const ChatProvider = ({ children }) => {
       pinnedChats,
       replyToMessage,
       setReplyToMessage,
+      forwardedMessage,
       socket,
     ]
   );
