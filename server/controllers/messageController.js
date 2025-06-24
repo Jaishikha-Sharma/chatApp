@@ -352,3 +352,33 @@ export const getReplyMessage = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+// ✅ Get all messages between any 2 users (Admin only)
+export const getMessagesBetweenUsers = async (req, res) => {
+  try {
+    const { user1Id, user2Id } = req.params;
+
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admins only.",
+      });
+    }
+
+    const messages = await Message.find({
+      isGroup: false,
+      $or: [
+        { senderId: user1Id, receiverId: user2Id },
+        { senderId: user2Id, receiverId: user1Id },
+      ],
+    })
+      .sort({ createdAt: 1 })
+      .populate("senderId", "fullName profilePic")
+      .populate("receiverId", "fullName profilePic");
+
+    res.status(200).json({ success: true, messages });
+  } catch (error) {
+    console.error("Admin Message View Error:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+

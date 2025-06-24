@@ -204,6 +204,17 @@ const Sidebar = () => {
                 <Pencil className="w-4 h-4" />
                 Edit Profile
               </div>
+              {authUser?.role === "Admin" && (
+                <div
+                  onClick={() => {
+                    navigate("/admin/messages");
+                    setShowMenu(false);
+                  }}
+                  className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
+                >
+                  📂 View Messages
+                </div>
+              )}
               <div
                 onClick={() => {
                   handlePinToggle();

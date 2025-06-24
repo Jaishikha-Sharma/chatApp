@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthContext } from "../context/AuthContext.jsx";
 import "./index.css";
 import ApproveChat from "../src/pages/ApproveChat.jsx";
+import AdminMessageViewer from "./pages/AdminMessageViewer.jsx";
 
 const App = () => {
   const { authUser } = useContext(AuthContext);
@@ -28,8 +29,17 @@ const App = () => {
           path="/profile"
           element={authUser ? <ProfilePage /> : <Navigate to="/login" />}
         />
-              <Route path="/approve-chat" element={<ApproveChat />} />
-
+        <Route path="/approve-chat" element={<ApproveChat />} />
+        <Route
+          path="/admin/messages"
+          element={
+            authUser && authUser.role === "Admin" ? (
+              <AdminMessageViewer />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
       </Routes>
     </div>
   );
