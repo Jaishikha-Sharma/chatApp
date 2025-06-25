@@ -382,24 +382,30 @@ const GroupChatContainer = () => {
       </div>
 
       {/* Soft Banner */}
-      <div className="px-4 py-2 bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm flex items-center gap-2">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 flex-shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M13 16h-1v-4h-1m1-4h.01M12 17a5 5 0 100-10 5 5 0 000 10z"
-          />
-        </svg>
-        <span>
-          You are not allowed to share personal contact or discuss payments.
-        </span>
+      <div className="relative overflow-hidden bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm py-2">
+        <div className="flex items-center gap-2 px-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13 16h-1v-4h-1m1-4h.01M12 17a5 5 0 100-10 5 5 0 000 10z"
+            />
+          </svg>
+          <div className="overflow-hidden whitespace-nowrap w-full">
+            <div className="animate-marquee inline-block min-w-full">
+              ⚠️ You are not allowed to share personal contact or discuss
+              payments. &nbsp;&nbsp;&nbsp; 🔴 This chat will be recorded for
+              quality and training purposes.
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
