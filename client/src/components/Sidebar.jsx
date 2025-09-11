@@ -4,7 +4,7 @@ import { ChatContext } from "../../context/ChatContext.jsx";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import CreateGroupModal from "../components/CreateGroupModal.jsx";
 import assets from "../assets/assets";
-import { LogOut, Pencil, Pin, ChevronDown, ChevronRight } from "lucide-react";
+import { LogOut, Pencil, Pin, ChevronDown, ChevronRight, Share2 } from "lucide-react";
 import CreateUserModal from "../pages/CreateUserModal.jsx";
 
 const Sidebar = () => {
@@ -20,6 +20,7 @@ const Sidebar = () => {
     unseenMessages,
     pinnedChats,
     togglePinChat,
+    shareUserToSelectedUser,
   } = useContext(ChatContext);
 
   const { logout, onlineUsers, authUser } = useContext(AuthContext);
@@ -87,13 +88,13 @@ const Sidebar = () => {
             : "hover:bg-white/10 border-white/20"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full">
           <img
             src={image || assets.avatar_icon}
             alt="icon"
             className="w-[40px] h-[40px] object-cover rounded-full border border-white/40 shadow-sm"
           />
-          <div className="flex flex-col leading-5 text-white w-full">
+          <div className="flex flex-col leading-5 text-white flex-1">
             <div className="flex items-center gap-2">
               <p className="text-base font-semibold">{name}</p>
               {isPinned(item._id) && (
@@ -112,6 +113,22 @@ const Sidebar = () => {
                 : `${memberCount || 0} members`}
             </span>
           </div>
+
+          {/* ✅ Share icon for other users when one is selected */}
+          {type === "user" &&
+            selectedUser &&
+            selectedUser._id !== item._id && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  shareUserToSelectedUser(item);
+                }}
+                title="Share"
+                className="text-white hover:text-blue-400 transition-all p-1 rounded-full"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            )}
         </div>
 
         {unseenMessages[String(item._id)] > 0 && (
@@ -136,8 +153,8 @@ const Sidebar = () => {
   };
 
   const sortedUsers = [...users]
-    .sort((a, b) => (unseenMessages[b._id] || 0) - (unseenMessages[a._id] || 0)) // new msgs top
-    .sort((a, b) => isPinned(b._id) - isPinned(a._id)); // pinned top
+    .sort((a, b) => (unseenMessages[b._id] || 0) - (unseenMessages[a._id] || 0))
+    .sort((a, b) => isPinned(b._id) - isPinned(a._id));
 
   const sortedGroups = [...groups]
     .sort((a, b) => (unseenMessages[b._id] || 0) - (unseenMessages[a._id] || 0))
@@ -199,18 +216,19 @@ const Sidebar = () => {
                   navigate("/profile");
                   setShowMenu(false);
                 }}
-                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md hover:bg-purple-100 hover:text-purple-600"
               >
                 <Pencil className="w-4 h-4" />
                 Edit Profile
               </div>
+
               {authUser?.role === "Admin" && (
                 <div
                   onClick={() => {
                     navigate("/admin/messages");
                     setShowMenu(false);
                   }}
-                  className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
+                  className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md hover:bg-purple-100 hover:text-purple-600"
                 >
                   📂 View Messages
                 </div>
@@ -220,7 +238,7 @@ const Sidebar = () => {
                   handlePinToggle();
                   setShowMenu(false);
                 }}
-                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-purple-100 hover:text-purple-600 hover:scale-[1.02]"
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md hover:bg-purple-100 hover:text-purple-600"
               >
                 <Pin className="w-4 h-4" />
                 {selectedUser || selectedGroup
@@ -235,7 +253,7 @@ const Sidebar = () => {
                   logout();
                   setShowMenu(false);
                 }}
-                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md transition-all duration-200 hover:bg-red-100 hover:text-red-600 hover:scale-[1.02]"
+                className="cursor-pointer flex items-center gap-2 px-2 py-2 rounded-md hover:bg-red-100 hover:text-red-600"
               >
                 <LogOut className="w-4 h-4" />
                 Log Out
@@ -248,14 +266,14 @@ const Sidebar = () => {
           <>
             <Link
               to="/approve-chat"
-              className="block text-center text-sm font-semibold bg-purple-200 hover:bg-purple-300 text-purple-800 py-2 px-4 rounded-full transition-all duration-200 mb-2"
+              className="block text-center text-sm font-semibold bg-purple-200 hover:bg-purple-300 text-purple-800 py-2 px-4 rounded-full mb-2"
             >
               Approve Chats
             </Link>
 
             <button
               onClick={() => setShowCreateUserModal(true)}
-              className="block w-full text-sm font-semibold bg-green-200 hover:bg-green-300 text-green-800 py-2 px-4 rounded-full transition-all duration-200 mb-4"
+              className="block w-full text-sm font-semibold bg-green-200 hover:bg-green-300 text-green-800 py-2 px-4 rounded-full mb-4"
             >
               ➕ Create User
             </button>
@@ -273,13 +291,13 @@ const Sidebar = () => {
           />
         </div>
 
-        {/* Filter Buttons */}
+        {/* Filters */}
         <div className="flex gap-3 mt-3">
           {["All", "Online", "Unread"].map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`text-sm font-medium px-3 py-1 rounded-full shadow transition-all duration-200 ${
+              className={`text-sm font-medium px-3 py-1 rounded-full shadow ${
                 activeFilter === filter
                   ? "bg-white text-purple-600"
                   : "bg-white/80 text-gray-700 hover:bg-white"
@@ -291,7 +309,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Groups Toggle Section */}
+      {/* Groups */}
       <div className="mt-1 mb-4">
         <div
           onClick={() => setShowGroups(!showGroups)}
@@ -321,7 +339,7 @@ const Sidebar = () => {
         )}
       </div>
 
-      {/* Scrollable User List */}
+      {/* Users */}
       <div
         className="overflow-y-auto pr-1 custom-scrollbar"
         style={{ maxHeight: "calc(100vh - 370px)" }}

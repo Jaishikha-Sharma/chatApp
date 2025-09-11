@@ -302,7 +302,31 @@ const ChatContainer = () => {
                         className="max-w-[250px] rounded-xl shadow"
                       />
                     )}
-                    {msg.text && <span>{msg.text}</span>}
+                    {(() => {
+                      try {
+                        const parsed = JSON.parse(msg.text);
+                        if (parsed.type === "user-reference") {
+                          return (
+                            <div className="bg-blue-100 border-l-4 border-blue-500 rounded p-3 text-sm shadow-sm">
+                              <p className="font-semibold text-blue-900 mb-1">
+                                📇 Shared Contact
+                              </p>
+                              <p className="text-blue-800">
+                                👤 {parsed.username}
+                              </p>
+                              <p className="text-blue-700 text-xs">
+                                🆔 {parsed.userId}
+                              </p>
+                            </div>
+                          );
+                        } else {
+                          return <span>{msg.text}</span>;
+                        }
+                      } catch {
+                        return <span>{msg.text}</span>;
+                      }
+                    })()}
+
                     {msg.audio && (
                       <div>
                         <audio controls className="mt-1 max-w-[250px]">

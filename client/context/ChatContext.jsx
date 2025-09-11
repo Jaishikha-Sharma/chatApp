@@ -163,6 +163,19 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  const shareUserToSelectedUser = (userToShare) => {
+  if (!selectedUser || !userToShare) return;
+
+  const jsonMessage = JSON.stringify({
+    type: "user-reference",
+    username: userToShare.username || userToShare.fullName,
+    userId: userToShare._id,
+  });
+
+  sendMessage({ text: jsonMessage });
+};
+
+
   const sendGroupMessage = async ({ text, audio, image, document , forwardedMessage  }) => {
     if (!selectedGroup) return;
 
@@ -266,7 +279,6 @@ export const ChatProvider = ({ children }) => {
     }
   });
 };
-
 
   const unsubscribeFromMessages = () => {
     if (socket?.off) socket.off("newMessage");
@@ -433,8 +445,10 @@ export const ChatProvider = ({ children }) => {
       replyToMessage,
       setReplyToMessage,
       setForwardedMessage,
+      shareUserToSelectedUser,
       forwardedMessage, 
       socket,
+
     }),
     [
       users,
