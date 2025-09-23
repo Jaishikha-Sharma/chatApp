@@ -152,21 +152,43 @@ export const sendMessage = async (req, res) => {
     }
 
     // ❌ Check for forbidden content
+    // ❌ Check for forbidden + abusive content
     const forbiddenPatterns = [
       /\b\d{10,}\b/g,
       /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi,
       /https?:\/\/[^\s]+/gi,
       /(@[a-zA-Z0-9_]+)/gi,
     ];
-    const containsForbiddenInfo = (text) => {
+
+    // Abusive words list
+    const abusiveWords = [
+      "madarchod",
+      "bhenchod",
+      "gandu",
+      "chutiya",
+      "fuck",
+      "bitch",
+      "bastard",
+      "fuck",
+      "asshole",
+      "shit"
+    ];
+
+    const containsForbiddenInfoOrAbuse = (text) => {
       if (!text) return false;
-      return forbiddenPatterns.some((pattern) => pattern.test(text));
+      if (forbiddenPatterns.some((pattern) => pattern.test(text))) return true;
+
+      const lower = text.toLowerCase();
+      if (abusiveWords.some((word) => lower.includes(word))) return true;
+
+      return false;
     };
-    if (containsForbiddenInfo(text)) {
+
+    if (containsForbiddenInfoOrAbuse(text)) {
       return res.status(400).json({
         success: false,
         message:
-          "Message contains forbidden info such as phone numbers, emails, social media handles, or payment links.",
+          "Message contains forbidden or abusive content (phone numbers, emails, links, or abusive words).",
       });
     }
 
@@ -381,4 +403,3 @@ export const getMessagesBetweenUsers = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
