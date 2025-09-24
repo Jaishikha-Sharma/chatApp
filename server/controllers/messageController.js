@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import cloudinary from "../lib/cloudinary.js";
 import { io, userSocketMap } from "../server.js";
 import { canMessage } from "../lib/roleUtils.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 // Get all users except the logged-in user
 export const getUsersForSidebar = async (req, res) => {
@@ -151,8 +152,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // ❌ Check for forbidden content
-    // ❌ Check for forbidden + abusive content
+    // Forbidden / abusive check
     const forbiddenPatterns = [
       /\b\d{10,}\b/g,
       /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi,
@@ -160,7 +160,6 @@ export const sendMessage = async (req, res) => {
       /(@[a-zA-Z0-9_]+)/gi,
     ];
 
-    // Abusive words list
     const abusiveWords = [
       "madarchod",
       "bhenchod",
@@ -169,9 +168,8 @@ export const sendMessage = async (req, res) => {
       "fuck",
       "bitch",
       "bastard",
-      "fuck",
       "asshole",
-      "shit"
+      "shit",
     ];
 
     const containsForbiddenInfoOrAbuse = (text) => {
@@ -192,62 +190,55 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // ✅ Uploads
+    // Upload files
     let imageUrl, audioUrl, documentUrl, documentName;
-
     if (req.files?.image?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.image[0].path
       );
       imageUrl = uploadRes.secure_url;
     }
-
     if (req.files?.audio?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.audio[0].path,
-        {
-          resource_type: "video",
-        }
+        { resource_type: "video" }
       );
       audioUrl = uploadRes.secure_url;
     }
-
     if (req.files?.document?.[0]) {
       const uploadRes = await cloudinary.uploader.upload(
         req.files.document[0].path,
-        {
-          resource_type: "raw",
-        }
+        { resource_type: "raw" }
       );
       documentUrl = uploadRes.secure_url;
       documentName = req.files.document[0].originalname;
     }
 
-    // ✅ ReplyTo validation
+    // Reply & Forward validation
     let replyMessage = null;
     if (replyTo) {
       replyMessage = await Message.findById(replyTo);
       if (!replyMessage) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid replyTo message ID.",
-        });
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid replyTo message ID." });
       }
     }
 
-    // ✅ Forwarded message validation
     let forwardMessage = null;
     if (forwardedFrom) {
       forwardMessage = await Message.findById(forwardedFrom);
       if (!forwardMessage) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid forwardedFrom message ID.",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Invalid forwardedFrom message ID.",
+          });
       }
     }
 
-    // ✅ Create new message
+    // Create message
     const newMessage = await Message.create({
       senderId,
       receiverId,
@@ -261,7 +252,6 @@ export const sendMessage = async (req, res) => {
       documentName: documentName || null,
     });
 
-    // ✅ Populate reply and forwarded content
     await newMessage.populate([
       {
         path: "replyTo",
@@ -275,10 +265,38 @@ export const sendMessage = async (req, res) => {
       },
     ]);
 
-    // ✅ Real-time send
+    // Socket emit
     const receiverSocketId = userSocketMap[receiverId];
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
+
+    // Email notification
+    if (receiver?.email) {
+      sendEmail(
+        receiver.email,
+        "📩 You have a new message!",
+        `
+      <p>Hi ${receiver.fullName},</p>
+      <p>You got a new message from ${sender.fullName}:</p>
+      <blockquote>${text}</blockquote>
+      <p>
+        <a href="https://chat-app-zeta-sooty-37.vercel.app/login" 
+           style="
+             display:inline-block;
+             padding:10px 20px;
+             background-color:#4f46e5;
+             color:white;
+             text-decoration:none;
+             border-radius:5px;
+             font-weight:bold;
+           ">Open Chat App</a>
+      </p>
+      <p>- Project Banao Chat App Team</p>
+    `,
+        true
+      );
+      console.log("✅ Email triggered for", receiver.email);
     }
 
     res.json({ success: true, newMessage });
