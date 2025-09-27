@@ -35,7 +35,7 @@ const LoginPage = () => {
         {/* Left: Animated Welcome Block */}
         <div className="md:w-1/2 bg-[#225EA8] text-white flex flex-col justify-center items-center p-10 relative overflow-hidden">
           <div className="text-5xl font-extrabold mb-3 animate-pulse">
-            ChatVerse 🚀
+            PB Connect.🚀
           </div>
           <p className="text-lg text-center max-w-xs leading-relaxed opacity-90">
             Chat. Collaborate. Create.
