@@ -38,6 +38,7 @@ messageRouter.post(
     { name: "audio", maxCount: 1 },
     { name: "image", maxCount: 1 },
     { name: "document", maxCount: 1 },
+    { name: "video", maxCount: 1 },
   ]),
   sendMessage
 );

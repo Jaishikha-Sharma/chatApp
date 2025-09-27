@@ -57,50 +57,59 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
- const getMessages = async (userId) => {
-  setSelectedGroup(null);
-  try {
-    const { data } = await axios.get(`/api/messages/${userId}`);
-    if (data.success) {
-      const updatedMessages = await Promise.all(
-        data.messages.map(async (msg) => {
-          const newMsg = { ...msg };
+  const getMessages = async (userId) => {
+    setSelectedGroup(null);
+    try {
+      const { data } = await axios.get(`/api/messages/${userId}`);
+      if (data.success) {
+        const updatedMessages = await Promise.all(
+          data.messages.map(async (msg) => {
+            const newMsg = { ...msg };
 
-          if (newMsg.replyTo && typeof newMsg.replyTo === "string") {
-            try {
-              const { data } = await axios.get(`/api/messages/reply/${newMsg.replyTo}`);
-              if (data.success) newMsg.replyTo = data.message;
-            } catch {}
-          }
+            if (newMsg.replyTo && typeof newMsg.replyTo === "string") {
+              try {
+                const { data } = await axios.get(
+                  `/api/messages/reply/${newMsg.replyTo}`
+                );
+                if (data.success) newMsg.replyTo = data.message;
+              } catch {}
+            }
 
-          if (newMsg.forwardedFrom && typeof newMsg.forwardedFrom === "string") {
-            try {
-              const { data } = await axios.get(`/api/messages/reply/${newMsg.forwardedFrom}`);
-              if (data.success) newMsg.forwardedFrom = data.message;
-            } catch {}
-          }
+            if (
+              newMsg.forwardedFrom &&
+              typeof newMsg.forwardedFrom === "string"
+            ) {
+              try {
+                const { data } = await axios.get(
+                  `/api/messages/reply/${newMsg.forwardedFrom}`
+                );
+                if (data.success) newMsg.forwardedFrom = data.message;
+              } catch {}
+            }
 
-          if (!newMsg.seen && newMsg.senderId === userId) {
-            newMsg.seen = true;
-            await axios.put(`/api/messages/mark/${newMsg._id}`).catch(() => {});
-          }
+            if (!newMsg.seen && newMsg.senderId === userId) {
+              newMsg.seen = true;
+              await axios
+                .put(`/api/messages/mark/${newMsg._id}`)
+                .catch(() => {});
+            }
 
-          return newMsg;
-        })
-      );
+            return newMsg;
+          })
+        );
 
-      setMessages(updatedMessages);
+        setMessages(updatedMessages);
 
-      setUnseenMessages((prev) => {
-        const updated = { ...prev };
-        delete updated[userId];
-        return updated;
-      });
+        setUnseenMessages((prev) => {
+          const updated = { ...prev };
+          delete updated[userId];
+          return updated;
+        });
+      }
+    } catch (error) {
+      toast.error(error?.message || "Failed to fetch messages");
     }
-  } catch (error) {
-    toast.error(error?.message || "Failed to fetch messages");
-  }
-};
+  };
 
   const getGroupMessages = async (groupId) => {
     setSelectedUser(null);
@@ -115,7 +124,14 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Sending
-  const sendMessage = async ({ text, audio, image, document , forwardedMessage  }) => {
+  const sendMessage = async ({
+    text,
+    audio,
+    image,
+    document,
+    forwardedMessage,
+    video,
+  }) => {
     if (!selectedUser) return;
 
     if (text && containsForbiddenInfo(text)) {
@@ -129,6 +145,7 @@ export const ChatProvider = ({ children }) => {
       if (text) formData.append("text", text);
       if (audio) formData.append("audio", audio);
       if (image) formData.append("image", image);
+      if (video) formData.append("video", video);
 
       // ✅ Document support
       if (document) {
@@ -164,19 +181,25 @@ export const ChatProvider = ({ children }) => {
   };
 
   const shareUserToSelectedUser = (userToShare) => {
-  if (!selectedUser || !userToShare) return;
+    if (!selectedUser || !userToShare) return;
 
-  const jsonMessage = JSON.stringify({
-    type: "user-reference",
-    username: userToShare.username || userToShare.fullName,
-    userId: userToShare._id,
-  });
+    const jsonMessage = JSON.stringify({
+      type: "user-reference",
+      username: userToShare.username || userToShare.fullName,
+      userId: userToShare._id,
+    });
 
-  sendMessage({ text: jsonMessage });
-};
+    sendMessage({ text: jsonMessage });
+  };
 
-
-  const sendGroupMessage = async ({ text, audio, image, document , forwardedMessage  }) => {
+  const sendGroupMessage = async ({
+    text,
+    audio,
+    image,
+    document,
+    forwardedMessage,
+    video,
+  }) => {
     if (!selectedGroup) return;
 
     if (text && containsForbiddenInfo(text)) {
@@ -190,13 +213,14 @@ export const ChatProvider = ({ children }) => {
       if (text) formData.append("text", text);
       if (audio) formData.append("audio", audio);
       if (image) formData.append("image", image);
-
       // ✅ Document support
       if (document) {
         formData.append("document", document);
         formData.append("documentName", document.name);
       }
-
+      if (video) {
+        formData.append("video", video);
+      }
       // ✅ Reply support
       if (replyToMessage?._id) {
         formData.append("replyTo", replyToMessage._id);
@@ -227,58 +251,65 @@ export const ChatProvider = ({ children }) => {
   };
 
   // Realtime
- const subscribeToMessages = () => {
-  if (!socket) return;
+  const subscribeToMessages = () => {
+    if (!socket) return;
 
-  socket.on("newMessage", async (newMessage) => {
-    const isGroup = newMessage.isGroup;
-    const isActive =
-      (isGroup && selectedGroup?._id === newMessage.groupId) ||
-      (!isGroup && selectedUser?._id === newMessage.senderId);
+    socket.on("newMessage", async (newMessage) => {
+      const isGroup = newMessage.isGroup;
+      const isActive =
+        (isGroup && selectedGroup?._id === newMessage.groupId) ||
+        (!isGroup && selectedUser?._id === newMessage.senderId);
 
-    // ✅ Populate replyTo message if it's just an ID
-    if (newMessage.replyTo && typeof newMessage.replyTo === "string") {
-      try {
-        const { data } = await axios.get(`/api/messages/reply/${newMessage.replyTo}`);
-        if (data.success) {
-          newMessage.replyTo = data.message;
+      // ✅ Populate replyTo message if it's just an ID
+      if (newMessage.replyTo && typeof newMessage.replyTo === "string") {
+        try {
+          const { data } = await axios.get(
+            `/api/messages/reply/${newMessage.replyTo}`
+          );
+          if (data.success) {
+            newMessage.replyTo = data.message;
+          }
+        } catch (error) {
+          console.error("Failed to populate replyTo:", error.message);
         }
-      } catch (error) {
-        console.error("Failed to populate replyTo:", error.message);
       }
-    }
 
-    // ✅ Populate forwardedFrom message if it's just an ID
-    if (newMessage.forwardedFrom && typeof newMessage.forwardedFrom === "string") {
-      try {
-        const { data } = await axios.get(`/api/messages/reply/${newMessage.forwardedFrom}`);
-        if (data.success) {
-          newMessage.forwardedFrom = data.message;
+      // ✅ Populate forwardedFrom message if it's just an ID
+      if (
+        newMessage.forwardedFrom &&
+        typeof newMessage.forwardedFrom === "string"
+      ) {
+        try {
+          const { data } = await axios.get(
+            `/api/messages/reply/${newMessage.forwardedFrom}`
+          );
+          if (data.success) {
+            newMessage.forwardedFrom = data.message;
+          }
+        } catch (error) {
+          console.error("Failed to populate forwardedFrom:", error.message);
         }
-      } catch (error) {
-        console.error("Failed to populate forwardedFrom:", error.message);
       }
-    }
 
-    if (isActive) {
-      newMessage.seen = true;
-      setMessages((prev) =>
-        prev.some((msg) => msg._id === newMessage._id)
-          ? prev
-          : [...prev, newMessage]
-      );
-      try {
-        await axios.put(`/api/messages/mark/${newMessage._id}`);
-      } catch {}
-    } else {
-      const key = isGroup ? newMessage.groupId : newMessage.senderId;
-      setUnseenMessages((prev) => ({
-        ...prev,
-        [key]: (prev[key] || 0) + 1,
-      }));
-    }
-  });
-};
+      if (isActive) {
+        newMessage.seen = true;
+        setMessages((prev) =>
+          prev.some((msg) => msg._id === newMessage._id)
+            ? prev
+            : [...prev, newMessage]
+        );
+        try {
+          await axios.put(`/api/messages/mark/${newMessage._id}`);
+        } catch {}
+      } else {
+        const key = isGroup ? newMessage.groupId : newMessage.senderId;
+        setUnseenMessages((prev) => ({
+          ...prev,
+          [key]: (prev[key] || 0) + 1,
+        }));
+      }
+    });
+  };
 
   const unsubscribeFromMessages = () => {
     if (socket?.off) socket.off("newMessage");
@@ -446,9 +477,8 @@ export const ChatProvider = ({ children }) => {
       setReplyToMessage,
       setForwardedMessage,
       shareUserToSelectedUser,
-      forwardedMessage, 
+      forwardedMessage,
       socket,
-
     }),
     [
       users,

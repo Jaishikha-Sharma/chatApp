@@ -147,8 +147,7 @@ export const sendMessage = async (req, res) => {
     if (!canMessage(sender, receiver)) {
       return res.status(403).json({
         success: false,
-        message:
-          "You are not allowed to message this user without admin approval.",
+        message: "You are not allowed to message this user without admin approval.",
       });
     }
 
@@ -159,83 +158,58 @@ export const sendMessage = async (req, res) => {
       /https?:\/\/[^\s]+/gi,
       /(@[a-zA-Z0-9_]+)/gi,
     ];
-
-    const abusiveWords = [
-      "madarchod",
-      "bhenchod",
-      "gandu",
-      "chutiya",
-      "fuck",
-      "bitch",
-      "bastard",
-      "asshole",
-      "shit",
-    ];
+    const abusiveWords = ["madarchod","bhenchod","gandu","chutiya","fuck","bitch","bastard","asshole","shit"];
 
     const containsForbiddenInfoOrAbuse = (text) => {
       if (!text) return false;
       if (forbiddenPatterns.some((pattern) => pattern.test(text))) return true;
-
       const lower = text.toLowerCase();
-      if (abusiveWords.some((word) => lower.includes(word))) return true;
-
-      return false;
+      return abusiveWords.some((word) => lower.includes(word));
     };
 
     if (containsForbiddenInfoOrAbuse(text)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Message contains forbidden or abusive content (phone numbers, emails, links, or abusive words).",
+        message: "Message contains forbidden or abusive content.",
       });
     }
 
     // Upload files
-    let imageUrl, audioUrl, documentUrl, documentName;
+    let imageUrl, audioUrl, videoUrl, documentUrl, documentName;
+
     if (req.files?.image?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.image[0].path
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.image[0].path);
       imageUrl = uploadRes.secure_url;
     }
+
     if (req.files?.audio?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.audio[0].path,
-        { resource_type: "video" }
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.audio[0].path, {
+        resource_type: "video",
+      });
       audioUrl = uploadRes.secure_url;
     }
+
+    if (req.files?.video?.[0]) {
+      const uploadRes = await cloudinary.uploader.upload(req.files.video[0].path, {
+        resource_type: "video",   // 👈 video upload
+      });
+      videoUrl = uploadRes.secure_url;
+    }
+
     if (req.files?.document?.[0]) {
-      const uploadRes = await cloudinary.uploader.upload(
-        req.files.document[0].path,
-        { resource_type: "raw" }
-      );
+      const uploadRes = await cloudinary.uploader.upload(req.files.document[0].path, {
+        resource_type: "raw",
+      });
       documentUrl = uploadRes.secure_url;
       documentName = req.files.document[0].originalname;
     }
 
     // Reply & Forward validation
-    let replyMessage = null;
-    if (replyTo) {
-      replyMessage = await Message.findById(replyTo);
-      if (!replyMessage) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid replyTo message ID." });
-      }
+    if (replyTo && !(await Message.findById(replyTo))) {
+      return res.status(400).json({ success: false, message: "Invalid replyTo message ID." });
     }
-
-    let forwardMessage = null;
-    if (forwardedFrom) {
-      forwardMessage = await Message.findById(forwardedFrom);
-      if (!forwardMessage) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Invalid forwardedFrom message ID.",
-          });
-      }
+    if (forwardedFrom && !(await Message.findById(forwardedFrom))) {
+      return res.status(400).json({ success: false, message: "Invalid forwardedFrom message ID." });
     }
 
     // Create message
@@ -245,6 +219,7 @@ export const sendMessage = async (req, res) => {
       text,
       image: imageUrl || null,
       audio: audioUrl || null,
+      video: videoUrl || null,    // 👈 save video url
       duration: duration || null,
       replyTo: replyTo || null,
       forwardedFrom: forwardedFrom || null,
@@ -252,51 +227,24 @@ export const sendMessage = async (req, res) => {
       documentName: documentName || null,
     });
 
+    // Populate
     await newMessage.populate([
-      {
-        path: "replyTo",
-        select: "text image audio duration senderId",
-        populate: { path: "senderId", select: "fullName" },
-      },
-      {
-        path: "forwardedFrom",
-        select: "text image audio duration document documentName senderId",
-        populate: { path: "senderId", select: "fullName" },
-      },
+      { path: "replyTo", select: "text image audio video duration senderId", populate: { path: "senderId", select: "fullName" } },
+      { path: "forwardedFrom", select: "text image audio video duration document documentName senderId", populate: { path: "senderId", select: "fullName" } },
     ]);
 
     // Socket emit
     const receiverSocketId = userSocketMap[receiverId];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
+    if (receiverSocketId) io.to(receiverSocketId).emit("newMessage", newMessage);
 
     // Email notification
     if (receiver?.email) {
       sendEmail(
         receiver.email,
         "📩 You have a new message!",
-        `
-      <p>Hi ${receiver.fullName},</p>
-      <p>You got a new message from ${sender.fullName}:</p>
-      <blockquote>${text}</blockquote>
-      <p>
-        <a href="https://chat-app-zeta-sooty-37.vercel.app/login" 
-           style="
-             display:inline-block;
-             padding:10px 20px;
-             background-color:#4f46e5;
-             color:white;
-             text-decoration:none;
-             border-radius:5px;
-             font-weight:bold;
-           ">Open Chat App</a>
-      </p>
-      <p>- Project Banao Chat App Team</p>
-    `,
+        `<p>Hi ${receiver.fullName},</p><p>You got a new message from ${sender.fullName}:</p><blockquote>${text}</blockquote>`,
         true
       );
-      console.log("✅ Email triggered for", receiver.email);
     }
 
     res.json({ success: true, newMessage });

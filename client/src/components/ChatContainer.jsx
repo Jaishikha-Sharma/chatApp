@@ -127,6 +127,21 @@ const ChatContainer = () => {
     e.target.value = "";
   };
 
+  const handleSendVideo = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file!");
+      return;
+    }
+    try {
+      await sendMessage({ video: file });
+      toast.success("Video sent!");
+    } catch {
+      toast.error("Failed to send video!");
+    }
+    e.target.value = "";
+  };
+
   useEffect(() => {
     if (selectedUser) getMessages(selectedUser._id);
   }, [selectedUser]);
@@ -211,7 +226,7 @@ const ChatContainer = () => {
           return messages.map((msg) => {
             const isSentByMe = msg.senderId === authUser._id;
             const hasContent =
-              msg.text || msg.image || msg.audio || msg.document;
+              msg.text || msg.image || msg.audio || msg.document || msg.video;
             if (!hasContent) return null;
 
             const msgDate = new Date(msg.createdAt).toDateString();
@@ -326,6 +341,18 @@ const ChatContainer = () => {
                         return <span>{msg.text}</span>;
                       }
                     })()}
+                    {msg.video && (
+                      <video
+                        controls
+                        className="max-w-[250px] rounded-xl shadow mt-2"
+                      >
+                        <source
+                          src={msg.video}
+                          type={msg.video.type || "video/mp4"}
+                        />
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
 
                     {msg.audio && (
                       <div>
@@ -451,6 +478,19 @@ const ChatContainer = () => {
             placeholder="Send a message..."
             className="flex-1 text-sm p-3 border-none rounded-lg outline-none bg-transparent text-black placeholder-gray-500"
           />
+          <input
+            type="file"
+            id="video"
+            accept="video/*"
+            hidden
+            onChange={handleSendVideo}
+          />
+          <label htmlFor="video">
+            <svg className="w-5 h-5 mr-2 cursor-pointer text-black hover:text-blue-600">
+              {/* you can use a video icon from lucide-react */}
+            </svg>
+          </label>
+
           <input
             type="file"
             id="image"
